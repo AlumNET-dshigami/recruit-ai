@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #334155;
+  --color-primary-dark: #1e293b;
+  --color-accent: #475569;
+  --color-sidebar: #1e293b;
+  --color-sidebar-active: rgba(255, 255, 255, 0.08);
+  --color-danger: #dc2626;
+  --color-card: #ffffff;
+  --color-bg: #f1f5f9;
+  --font-sans: "Hiragino Sans", "Yu Gothic", "Meiryo UI", "Segoe UI", sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Sidebar scrollbar */
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Markdown-like result formatting */
+.result-content h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 18px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.result-content h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4a5568;
+  margin: 14px 0 6px;
+}
+.result-content ul,
+.result-content ol {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+.result-content li {
+  margin: 3px 0;
+}
+.result-content strong {
+  color: #2d3748;
+}
