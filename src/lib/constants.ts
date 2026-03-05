@@ -26,7 +26,7 @@ export interface Tab {
 
 export const TABS: Tab[] = [
   // 戦略・計画
-  { id: "plan", icon: "\u{1F4CA}", label: "採用計画策定", section: "戦略・計画", badge: "NEW" },
+  { id: "plan", icon: "\u{1F4CA}", label: "採用計画策定", section: "戦略・計画" },
   { id: "persona", icon: "👤", label: "ペルソナ設計", section: "戦略・計画" },
   { id: "salary", icon: "\u{1F4B4}", label: "給与ベンチマーク", section: "戦略・計画" },
 
@@ -34,21 +34,21 @@ export const TABS: Tab[] = [
   { id: "job", icon: "\u{1F4CB}", label: "求人票作成", section: "募集・集客" },
   { id: "diversity", icon: "\u{1F308}", label: "バイアスチェック", section: "募集・集客" },
   { id: "scout", icon: "\u{1F4E7}", label: "スカウト文章作成", section: "募集・集客" },
-  { id: "branding", icon: "\u{1F4E2}", label: "採用広報コンテンツ", section: "募集・集客", badge: "NEW" },
+  { id: "branding", icon: "\u{1F4E2}", label: "採用広報コンテンツ", section: "募集・集客" },
 
   // 選考
   { id: "screening", icon: "\u{1F4C4}", label: "書類選考支援", section: "選考" },
   { id: "interview", icon: "\u{1F3A4}", label: "面接質問生成", section: "選考" },
   { id: "judgment", icon: "\u2696\uFE0F", label: "面接合否判定", section: "選考" },
-  { id: "reference", icon: "\u{1F4DE}", label: "リファレンスチェック", section: "選考", badge: "NEW" },
+  { id: "reference", icon: "\u{1F4DE}", label: "リファレンスチェック", section: "選考" },
 
   // 内定・入社
   { id: "offer", icon: "\u{1F381}", label: "オファーレター", section: "内定・入社" },
-  { id: "negotiation", icon: "\u{1F91D}", label: "条件交渉支援", section: "内定・入社", badge: "NEW" },
-  { id: "onboarding", icon: "\u{1F680}", label: "オンボーディング計画", section: "内定・入社", badge: "NEW" },
+  { id: "negotiation", icon: "\u{1F91D}", label: "条件交渉支援", section: "内定・入社" },
+  { id: "onboarding", icon: "\u{1F680}", label: "オンボーディング計画", section: "内定・入社" },
 
   // 分析・ツール
-  { id: "report", icon: "\u{1F4C8}", label: "採用レポート", section: "分析・ツール", badge: "NEW" },
+  { id: "report", icon: "\u{1F4C8}", label: "採用レポート", section: "分析・ツール" },
   { id: "custom", icon: "\u2699\uFE0F", label: "カスタム実行", section: "分析・ツール" },
 ];
 
