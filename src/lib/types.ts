@@ -60,6 +60,25 @@ export interface AiLog {
   created_at: string;
 }
 
+export interface InterviewRecord {
+  id: string;
+  pipeline_id: string;
+  interview_type: "interview1" | "interview_final" | "casual" | "other";
+  interviewer_name: string;
+  interview_date: string;
+  transcript: string;
+  notes: string;
+  rating: number | null;
+  created_at: string;
+}
+
+export const INTERVIEW_TYPE_LABELS: Record<string, string> = {
+  interview1: "1次面接",
+  interview_final: "最終面接",
+  casual: "カジュアル面談",
+  other: "その他",
+};
+
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   applied: "応募受付",
   screening: "書類選考",
