@@ -98,7 +98,7 @@ export default function StrategyPage() {
   const tabProps = { run, loading, result: results[activeTab] || "" };
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1000px] mx-auto">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-1">
           🎯 採用戦略
@@ -108,7 +108,7 @@ export default function StrategyPage() {
         </p>
 
         {/* Sub Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
+        <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
           {SUB_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -153,9 +153,9 @@ export default function StrategyPage() {
                     </h3>
 
                     {/* Funnel Rates */}
-                    <div className="flex gap-2 mb-3">
+                    <div className="flex flex-wrap gap-2 mb-3">
                       {industry.funnel.map((step) => (
-                        <div key={step.label} className="flex-1 text-center">
+                        <div key={step.label} className="flex-1 min-w-[80px] text-center">
                           <div className="text-[18px] font-extrabold text-gray-800">
                             {step.rate}
                           </div>

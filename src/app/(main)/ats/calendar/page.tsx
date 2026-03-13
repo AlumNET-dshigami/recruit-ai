@@ -100,10 +100,10 @@ export default function InterviewCalendarPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1200px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-800">📅 面接カレンダー</h1>
             <p className="text-[13px] text-gray-400 mt-0.5">面接予定を一覧表示・面接官の空き状況を可視化</p>
@@ -131,7 +131,7 @@ export default function InterviewCalendarPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-3xl font-extrabold text-gray-800">{weekEvents.length}</div>
             <div className="text-[11px] text-gray-400 font-bold mt-1">今週の面接数</div>
@@ -170,7 +170,8 @@ export default function InterviewCalendarPage() {
         )}
 
         {/* Calendar Grid */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+          <div className="min-w-[700px]">
           {/* Day Headers */}
           <div className="grid grid-cols-5 border-b border-gray-100">
             {weekDates.map((date) => {
@@ -227,6 +228,7 @@ export default function InterviewCalendarPage() {
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
 

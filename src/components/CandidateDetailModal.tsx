@@ -300,7 +300,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-[800px] max-h-[90vh] overflow-hidden shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full md:w-[800px] max-h-[90vh] overflow-hidden shadow-xl flex flex-col mx-4 md:mx-0" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center justify-between">
@@ -323,7 +323,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {nextStage && (
                 <button onClick={() => moveStage(nextStage)} className="text-[11px] font-bold text-white bg-blue-500 px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors">
                   → {STAGE_LABELS[nextStage]}へ
@@ -337,7 +337,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-4">
+          <div className="flex flex-wrap gap-1 mt-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -362,7 +362,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
           {/* Profile Tab */}
           {activeTab === "profile" && (
             <div>
-              <div className="grid grid-cols-3 gap-4 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                 <div>
                   <div className="text-[10px] font-bold text-gray-400 mb-0.5">現職</div>
                   <div className="text-[13px] text-gray-700">{candidate?.current_company}<br />{candidate?.current_position}</div>
@@ -489,7 +489,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
               {showAddInterview && (
                 <div className="bg-slate-50 rounded-xl p-5 mb-5 border border-slate-200">
                   <h4 className="text-[13px] font-bold text-gray-700 mb-3">新しい面談記録</h4>
-                  <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 block mb-1">種別</label>
                       <select className={inputClass} value={interviewForm.interview_type} onChange={(e) => setInterviewForm((f) => ({ ...f, interview_type: e.target.value }))}>

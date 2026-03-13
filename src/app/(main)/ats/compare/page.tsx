@@ -37,7 +37,7 @@ export default function ComparePage() {
   const maxScore = Math.max(...filtered.map((p) => p.score || 0), 1);
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1200px] mx-auto">
         <div className="flex items-center justify-between mb-5">
           <div>

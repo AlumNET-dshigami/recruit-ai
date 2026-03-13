@@ -47,7 +47,7 @@ export default function AtsPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
@@ -55,7 +55,7 @@ export default function AtsPage() {
             <h1 className="text-2xl font-extrabold text-gray-800">👥 選考管理</h1>
             <p className="text-[13px] text-gray-400 mt-0.5">候補者をクリックして詳細・AIサポートを実行</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
@@ -86,8 +86,8 @@ export default function AtsPage() {
         </div>
 
         {/* Candidate Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider px-5 py-3">候補者</th>

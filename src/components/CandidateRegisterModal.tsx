@@ -95,7 +95,7 @@ export default function CandidateRegisterModal({ jobs, onClose, onRegistered }: 
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-[680px] max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full md:w-[680px] max-h-[90vh] overflow-y-auto shadow-xl mx-4 md:mx-0" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -133,7 +133,7 @@ export default function CandidateRegisterModal({ jobs, onClose, onRegistered }: 
           </div>
 
           {/* 職歴 */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className={labelClass}>現在の会社</label>
               <input className={inputClass} value={form.current_company} onChange={(e) => set("current_company", e.target.value)} placeholder="株式会社〇〇" />

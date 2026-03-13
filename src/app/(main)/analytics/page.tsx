@@ -289,13 +289,13 @@ ${agentSummary}
   };
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-1">📊 数値分析</h1>
         <p className="text-[13px] text-gray-400 mb-5">ファネル・リードタイム・エージェント分析・レポート自動生成</p>
 
         {/* Sub Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
+        <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
           {SUB_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -312,7 +312,7 @@ ${agentSummary}
         {/* ===== ファネル ===== */}
         {activeTab === "funnel" && (
           <>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
                 <div className="text-3xl font-extrabold text-gray-800">{pipeline.length}</div>
                 <div className="text-[12px] text-gray-400 font-bold mt-1">総エントリー</div>
@@ -328,7 +328,7 @@ ${agentSummary}
                 <div className="text-[12px] text-gray-400 font-bold mt-1">平均AIスコア</div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <h2 className="text-[15px] font-bold text-gray-700 mb-4">採用ファネル</h2>
                 <div style={{ height: 250 }}><Bar data={funnelChartData} options={barOptions} /></div>
@@ -350,7 +350,7 @@ ${agentSummary}
         {/* ===== リードタイム分析 ===== */}
         {activeTab === "leadtime" && (
           <>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
                 <div className="text-3xl font-extrabold text-gray-800">{totalAvgDays}</div>
                 <div className="text-[12px] text-gray-400 font-bold mt-1">平均選考日数（合計）</div>
@@ -369,7 +369,7 @@ ${agentSummary}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <h2 className="text-[15px] font-bold text-gray-700 mb-4">⏱️ ステージ別平均日数</h2>
                 <div style={{ height: 260 }}>
@@ -434,7 +434,7 @@ ${agentSummary}
         {/* ===== エージェント別パフォーマンス ===== */}
         {activeTab === "agents" && (
           <>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
                 <div className="text-3xl font-extrabold text-gray-800">{agentData.length}</div>
                 <div className="text-[12px] text-gray-400 font-bold mt-1">チャネル数</div>
@@ -454,8 +454,8 @@ ${agentSummary}
             </div>
 
             {/* ランキングテーブル */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-              <table className="w-full">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto mb-6">
+              <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="text-left text-[11px] font-bold text-gray-400 uppercase px-5 py-3">#</th>
@@ -560,7 +560,7 @@ ${agentSummary}
               </div>
 
               {/* データサマリー */}
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
                   { label: "総エントリー", value: pipeline.length, icon: "👥" },
                   { label: "入社決定", value: pipeline.filter((p) => p.stage === "hired").length, icon: "✅" },

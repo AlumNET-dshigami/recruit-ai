@@ -210,7 +210,7 @@ AIスコア: ${p?.score || "未評価"}
   });
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -228,7 +228,7 @@ AIスコア: ${p?.score || "未評価"}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-3xl font-extrabold text-gray-800">{profiles.length}</div>
             <div className="text-[11px] text-gray-400 font-bold mt-1">登録済みHP</div>
@@ -254,7 +254,7 @@ AIスコア: ${p?.score || "未評価"}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
             <h2 className="text-[15px] font-bold text-gray-700 mb-4">ハイパフォーマー登録</h2>
 
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
               <div>
                 <label className="text-[11px] font-bold text-gray-500 block mb-1">氏名 *</label>
                 <input className={inputClass} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="田中太郎" />
@@ -323,9 +323,9 @@ AIスコア: ${p?.score || "未評価"}
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* ハイパフォーマー一覧 */}
-          <div className="col-span-2 space-y-4">
+          <div className="md:col-span-2 space-y-4">
             <h2 className="text-[15px] font-bold text-gray-700">🌟 ハイパフォーマー一覧</h2>
 
             {profiles.length === 0 && !showAdd && (

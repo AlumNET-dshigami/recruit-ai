@@ -81,7 +81,7 @@ export default function TalentPoolPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <div className="mb-5">
           <h1 className="text-2xl font-extrabold text-gray-800">🏊 タレントプール</h1>
@@ -91,7 +91,7 @@ export default function TalentPoolPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
             <div className="text-3xl font-extrabold text-gray-800">{uniquePool.length}</div>
             <div className="text-[12px] text-gray-400 font-bold mt-1">プール人数</div>
@@ -108,9 +108,9 @@ export default function TalentPoolPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Pool List */}
-          <div className="col-span-2">
+          <div className="md:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <table className="w-full">
                 <thead>

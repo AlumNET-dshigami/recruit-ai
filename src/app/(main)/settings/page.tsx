@@ -80,7 +80,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[800px] mx-auto">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-6">⚙️ 設定</h1>
 

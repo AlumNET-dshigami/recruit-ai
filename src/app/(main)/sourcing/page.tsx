@@ -58,7 +58,7 @@ export default function SourcingPage() {
   };
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1000px] mx-auto">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-1">
           📢 母集団形成
@@ -68,7 +68,7 @@ export default function SourcingPage() {
         </p>
 
         {/* Sub Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
+        <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 mb-5">
           {SUB_TABS.map((tab) => (
             <button
               key={tab.id}

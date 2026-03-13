@@ -180,7 +180,7 @@ export default function AssessmentPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -198,7 +198,7 @@ export default function AssessmentPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
             <div className="text-3xl font-extrabold text-gray-800">{assessments.length}</div>
             <div className="text-[11px] text-gray-400 font-bold mt-1">検査数</div>
@@ -497,7 +497,7 @@ export default function AssessmentPage() {
         {/* 結果モーダル */}
         {showResults && selectedAssessment && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowResults(false)}>
-            <div className="bg-white rounded-2xl w-[700px] max-h-[80vh] overflow-hidden shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl w-full md:w-[700px] max-h-[80vh] overflow-hidden shadow-xl flex flex-col mx-4 md:mx-0" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">{selectedAssessment.title}</h2>

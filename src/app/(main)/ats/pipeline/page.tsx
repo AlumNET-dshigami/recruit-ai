@@ -170,7 +170,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="px-5 py-6 h-full flex flex-col">
+    <div className="px-3 md:px-5 py-4 md:py-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-extrabold text-gray-800">
           候補者パイプライン
@@ -277,7 +277,7 @@ export default function PipelinePage() {
           onClick={() => setSelectedPipeline(null)}
         >
           <div
-            className="bg-white rounded-2xl w-[700px] max-h-[85vh] overflow-y-auto shadow-xl"
+            className="bg-white rounded-2xl w-full md:w-[700px] max-h-[85vh] overflow-y-auto shadow-xl mx-4 md:mx-0"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">

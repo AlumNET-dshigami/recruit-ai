@@ -131,7 +131,7 @@ export default function JobsPage() {
   }
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-extrabold text-gray-800">案件管理</h1>
@@ -143,7 +143,7 @@ export default function JobsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {jobs.map((job) => {
             const statusColor =
               job.status === "open"
@@ -227,7 +227,7 @@ export default function JobsPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white rounded-2xl w-[560px] max-h-[85vh] overflow-y-auto shadow-xl"
+            className="bg-white rounded-2xl w-full md:w-[560px] max-h-[85vh] overflow-y-auto shadow-xl mx-4 md:mx-0"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-gray-100">

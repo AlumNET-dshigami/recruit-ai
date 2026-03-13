@@ -184,14 +184,14 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="px-7 py-6">
+    <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
         <h1 className="text-2xl font-extrabold text-gray-800 mb-6">
           🏠 ダッシュボード
         </h1>
 
         {/* KPI Cards - 2行4列 */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {kpiCards.map((card) => (
             <div
               key={card.label}
@@ -213,7 +213,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Funnel Chart */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-[15px] font-bold text-gray-700 mb-4">
