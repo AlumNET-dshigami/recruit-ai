@@ -43,7 +43,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "フェーズ④",
-    items: [{ href: "/analytics", icon: "📊", label: "数値分析" }],
+    items: [
+      { href: "/analytics", icon: "📊", label: "数値分析" },
+      { href: "/culture-fit", icon: "🧬", label: "カルチャーフィット" },
+    ],
   },
   {
     items: [{ href: "/settings", icon: "⚙️", label: "設定" }],
