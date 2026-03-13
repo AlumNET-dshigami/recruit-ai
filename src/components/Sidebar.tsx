@@ -24,7 +24,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "フェーズ②",
-    items: [{ href: "/sourcing", icon: "📢", label: "母集団形成" }],
+    items: [
+      { href: "/sourcing", icon: "📢", label: "母集団形成" },
+      { href: "/jobs", icon: "💼", label: "求人管理" },
+    ],
   },
   {
     title: "フェーズ③",
