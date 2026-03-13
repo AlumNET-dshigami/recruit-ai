@@ -11,7 +11,7 @@ interface Props {
   onUpdated: () => void;
 }
 
-type Tab = "profile" | "interviews" | "ai_logs";
+type Tab = "profile" | "interviews" | "ai_logs" | "email";
 
 const STAGE_ORDER: PipelineStage[] = ["applied", "screening", "interview1", "interview_final", "offer", "hired"];
 
@@ -71,11 +71,17 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
       rating: interviewForm.rating ? parseInt(interviewForm.rating) : null,
     }]);
     setShowAddInterview(false);
+    const savedTranscript = interviewForm.transcript.trim();
     setInterviewForm({
       interview_type: "interview1", interviewer_name: "", interview_date: new Date().toISOString().split("T")[0],
       transcript: "", notes: "", rating: "",
     });
     loadInterviews();
+
+    // 文字起こしがあれば自動サマリー生成
+    if (savedTranscript.length > 50) {
+      runAi("interview_summary", `以下の面接の文字起こしから要約を作成してください。\n\n【面接種別】${INTERVIEW_TYPE_LABELS[interviewForm.interview_type]}\n【面接官】${interviewForm.interviewer_name}\n【候補者】${candidate?.name}（${candidate?.current_company} ${candidate?.current_position}）\n【ポジション】${jobTitle}\n\n【文字起こし】\n${savedTranscript.slice(0, 3000)}\n\n以下の形式で要約してください:\n■ 面接サマリー（3-5行）\n■ 候補者の印象・態度\n■ 確認できたスキル・経験\n■ 懸念点・気になった点\n■ 推奨アクション`);
+    }
   }
 
   async function handleDrop(e: React.DragEvent) {
@@ -96,6 +102,8 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
       judgment: "あなたは構造化面接評価の専門家です。面接データ・文字起こしをもとに合否判定と根拠を詳細に提示してください。合格/保留/不合格の判定、スコア(0-100)、強み・懸念点・推奨アクションを含めてください。",
       handover: "あなたは採用プロセスの申し送り・引継ぎ文書作成の専門家です。次の面接官や意思決定者に向けた、簡潔かつ必要十分な申し送り事項を作成してください。",
       offer_letter: "あなたは人事・法務に精通したオファーレター作成のプロです。",
+      email: "あなたは採用担当者のメールライターです。候補者に送るビジネスメールを作成してください。丁寧かつ温かみのある文面で、件名と本文を出力してください。",
+      interview_summary: "あなたは面接記録の要約のプロです。面接の文字起こしから、重要なポイントを漏れなく抽出してください。",
       schedule: "あなたは採用面接の日程調整アシスタントです。",
       prep: "あなたは面接準備支援AIです。",
     };
@@ -142,6 +150,21 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
     ).join("\n\n---\n\n");
   }
 
+  // ステージに応じたメール文面プロンプト
+  function getEmailPrompt() {
+    const c = candidate;
+    const stageEmails: Record<string, string> = {
+      applied: `応募受領の確認メールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n応募へのお礼、今後の選考フローの簡単な説明、書類選考の所要期間（3営業日目安）を含めてください。`,
+      screening: `書類選考通過の連絡メールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\nAIスコア: ${pipeline.score || "—"}\n\n通過のお祝い、1次面接の案内（日程調整の依頼）を含めてください。オンライン面接（60分）を想定。`,
+      interview1: `1次面接のご案内メールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n面接日時の確認、面接官の紹介、準備事項、当日の流れを含めてください。`,
+      interview_final: `最終面接のご案内メールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n最終面接の詳細、面接官（役員/部長クラス）の紹介、想定質問の示唆を含めてください。`,
+      offer: `内定通知メールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n内定のお祝い、オファー条件の概要、入社までのスケジュール、質問窓口を含めてください。`,
+      hired: `入社前のウェルカムメールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n入社日の確認、初日のスケジュール、持ち物、チームからの歓迎メッセージを含めてください。`,
+      rejected: `お見送りメールを作成してください。\n候補者名: ${c?.name}\nポジション: ${jobTitle}\n\n選考参加へのお礼、今回は見送りとなった旨（具体的理由は記載不要）、今後のご活躍を祈る旨を、丁寧かつ誠実に伝えてください。`,
+    };
+    return stageEmails[pipeline.stage] || stageEmails.applied;
+  }
+
   // AIアクション生成
   function getAiActions() {
     const c = candidate;
@@ -176,6 +199,11 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
         prompt: `以下の候補者へのオファーレターを生成してください。\n\n【候補者名】${c?.name}\n【ポジション】${jobTitle}\n【入社予定日】2026年4月1日\n\n【面談記録サマリー】\n${interviewText.slice(0, 500)}`,
       });
     }
+    // メール文面生成は常に使える
+    actions.push({
+      label: "メール文面生成", icon: "✉️", type: "email", color: "bg-cyan-500",
+      prompt: getEmailPrompt(),
+    });
     return actions;
   }
 
@@ -200,9 +228,11 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
   const currentIdx = STAGE_ORDER.indexOf(pipeline.stage);
   const nextStage = currentIdx >= 0 && currentIdx < STAGE_ORDER.length - 1 ? STAGE_ORDER[currentIdx + 1] : null;
 
+  const emailLogs = aiLogs.filter((l) => l.action_type === "email");
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "profile", label: "プロフィール" },
     { id: "interviews", label: "面談記録", count: interviews.length },
+    { id: "email", label: "メール文面", count: emailLogs.length },
     { id: "ai_logs", label: "AIログ", count: aiLogs.length },
   ];
 
@@ -454,6 +484,54 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
                       </div>
                     </details>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Email Tab */}
+          {activeTab === "email" && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[14px] font-bold text-gray-700">✉️ メール文面生成</h3>
+                <button
+                  onClick={() => runAi("email", getEmailPrompt())}
+                  disabled={aiLoading}
+                  className={`text-[12px] font-bold text-white px-4 py-2 rounded-lg transition-all ${
+                    aiLoading ? "bg-gray-400 cursor-not-allowed" : "bg-cyan-500 hover:bg-cyan-600"
+                  }`}
+                >
+                  {aiLoading ? "⏳ 生成中..." : `✉️ ${STAGE_LABELS[pipeline.stage]}のメールを生成`}
+                </button>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-4 mb-4 text-[12px] text-gray-500">
+                💡 現在のステージ「{STAGE_LABELS[pipeline.stage]}」に応じたメール文面をAIが生成します。
+                生成後はコピーしてそのままメールソフトに貼り付けできます。
+              </div>
+
+              {emailLogs.length === 0 && (
+                <div className="text-center py-10 text-gray-400">
+                  <div className="text-4xl mb-3">✉️</div>
+                  <div className="text-[13px]">まだメール文面がありません</div>
+                  <div className="text-[11px] mt-1">上のボタンからステージに合ったメールを生成できます</div>
+                </div>
+              )}
+              {emailLogs.map((log) => (
+                <div key={log.id} className="bg-white border border-gray-100 rounded-xl p-4 mb-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">メール文面</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">{new Date(log.created_at).toLocaleString("ja-JP")}</span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(log.result); }}
+                        className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                      >
+                        📋 コピー
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[12px] text-gray-600 whitespace-pre-wrap leading-relaxed">{log.result}</div>
                 </div>
               ))}
             </div>

@@ -22,6 +22,7 @@ export default function JobsPage() {
   const [editingJob, setEditingJob] = useState<Partial<Job> | null>(null);
   const [pipelineCounts, setPipelineCounts] = useState<Record<string, number>>({});
   const [copiedJobId, setCopiedJobId] = useState<string | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -77,6 +78,39 @@ export default function JobsPage() {
     setShowModal(false);
     setEditingJob(null);
     loadJobs();
+  }
+
+  async function aiGenerateJobDetails() {
+    if (!editingJob?.title) return;
+    setAiGenerating(true);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `以下の求人ポジションの詳細を生成してください。\n\nポジション名: ${editingJob.title}\n部門: ${editingJob.department || "未定"}\n年収レンジ: ${editingJob.salary_range || "未定"}\n勤務地: ${editingJob.location || "未定"}\n\n以下の形式でJSON形式で返してください（説明文はマークダウン不要、プレーンテキストで）:\n{"requirements": "必要なスキル・経験（箇条書き風に）", "description": "仕事内容の詳細（3-5行程度）"}`,
+          systemPrompt: "あなたはIT・コンサル・人材業界に精通した求人票作成のプロです。魅力的かつ現実的な求人票を作成してください。JSON形式のみで返答してください。",
+        }),
+      });
+      const data = await res.json();
+      const text = data.text || "";
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          setEditingJob((prev) => ({
+            ...prev,
+            requirements: parsed.requirements || prev?.requirements || "",
+            description: parsed.description || prev?.description || "",
+          }));
+        }
+      } catch {
+        // JSONパース失敗時はそのままテキストを設定
+        setEditingJob((prev) => ({ ...prev, description: text }));
+      }
+    } finally {
+      setAiGenerating(false);
+    }
   }
 
   async function toggleStatus(job: Job) {
@@ -202,13 +236,25 @@ export default function JobsPage() {
               </h2>
             </div>
             <div className="px-6 py-4 space-y-4">
+              <div className="bg-blue-50 rounded-lg p-3 flex items-center justify-between">
+                <span className="text-[12px] text-blue-700">🤖 ポジション名を入力してAI生成ボタンを押すと、要件・詳細を自動生成</span>
+                <button
+                  onClick={aiGenerateJobDetails}
+                  disabled={aiGenerating || !editingJob?.title}
+                  className={`text-[11px] font-bold text-white px-3 py-1.5 rounded-lg transition-all ${
+                    aiGenerating || !editingJob?.title ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {aiGenerating ? "⏳ 生成中..." : "🤖 AI生成"}
+                </button>
+              </div>
               {[
                 { key: "title", label: "ポジション名", placeholder: "例：フロントエンドエンジニア" },
                 { key: "department", label: "部門", placeholder: "例：プロダクト開発部" },
                 { key: "salary_range", label: "年収レンジ", placeholder: "例：500-750万円" },
                 { key: "location", label: "勤務地", placeholder: "例：東京（リモート可）" },
-                { key: "requirements", label: "要件", placeholder: "必要なスキル・経験", textarea: true },
-                { key: "description", label: "詳細", placeholder: "仕事内容の詳細", textarea: true },
+                { key: "requirements", label: "要件", placeholder: "必要なスキル・経験（AI生成可）", textarea: true },
+                { key: "description", label: "詳細", placeholder: "仕事内容の詳細（AI生成可）", textarea: true },
               ].map((field) => (
                 <div key={field.key}>
                   <label className="block text-[12px] font-bold text-gray-500 mb-1">
