@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { STAGE_LABELS } from "@/lib/types";
 import type { Pipeline, Job, Candidate, AiLog, PipelineStage } from "@/lib/types";
+import CandidateRegisterModal from "@/components/CandidateRegisterModal";
 
 export default function AtsPage() {
   const [pipeline, setPipeline] = useState<Pipeline[]>([]);
@@ -14,6 +15,7 @@ export default function AtsPage() {
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   const loadData = useCallback(async () => {
     const [jobsRes, pipelineRes] = await Promise.all([
@@ -166,6 +168,18 @@ export default function AtsPage() {
               <option value="all">全案件</option>
               {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
             </select>
+            <button
+              onClick={() => setShowRegister(true)}
+              className="text-[12px] font-bold text-white bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              ➕ 候補者登録
+            </button>
+            <Link
+              href="/ats/import"
+              className="text-[12px] font-bold text-primary bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors no-underline"
+            >
+              📥 CSV取込
+            </Link>
             <Link
               href="/ats/pipeline"
               className="text-[12px] font-bold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors no-underline"
@@ -318,6 +332,14 @@ export default function AtsPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Register Modal */}
+      {showRegister && (
+        <CandidateRegisterModal
+          jobs={jobs}
+          onClose={() => setShowRegister(false)}
+          onRegistered={() => loadData()}
+        />
       )}
     </div>
   );

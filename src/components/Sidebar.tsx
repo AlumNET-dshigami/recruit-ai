@@ -31,6 +31,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/ats", icon: "👥", label: "選考管理" },
       { href: "/ats/pipeline", icon: "📋", label: "パイプライン" },
+      { href: "/ats/import", icon: "📥", label: "CSV取込" },
     ],
   },
   {
