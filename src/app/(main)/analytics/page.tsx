@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
     STAGE_ORDER.forEach((s) => { stageData[s] = { total: 0, count: 0 }; });
 
     pipeline.forEach((p) => {
-      if (p.stage !== "applied") {
+      if (p.stage !== "applied" && stageData[p.stage]) {
         const days = Math.max(1, Math.round(
           (new Date(p.stage_changed_at).getTime() - new Date(p.created_at).getTime()) / 86400000
         ));
