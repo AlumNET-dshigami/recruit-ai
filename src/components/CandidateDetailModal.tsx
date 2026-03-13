@@ -11,7 +11,7 @@ interface Props {
   onUpdated: () => void;
 }
 
-type Tab = "profile" | "interviews" | "ai_logs" | "email";
+type Tab = "profile" | "timeline" | "interviews" | "ai_logs" | "email";
 
 const STAGE_ORDER: PipelineStage[] = ["applied", "screening", "interview1", "interview_final", "offer", "hired"];
 
@@ -231,10 +231,70 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
   const emailLogs = aiLogs.filter((l) => l.action_type === "email");
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "profile", label: "プロフィール" },
+    { id: "timeline", label: "タイムライン" },
     { id: "interviews", label: "面談記録", count: interviews.length },
     { id: "email", label: "メール文面", count: emailLogs.length },
     { id: "ai_logs", label: "AIログ", count: aiLogs.length },
   ];
+
+  // タイムライン用データ構築
+  function buildTimeline() {
+    const events: { date: string; icon: string; title: string; detail: string; color: string }[] = [];
+
+    // パイプライン作成（応募）
+    events.push({
+      date: pipeline.created_at,
+      icon: "📩",
+      title: "応募受付",
+      detail: `${jobTitle}に応募`,
+      color: "bg-gray-400",
+    });
+
+    // ステージ変更
+    if (pipeline.stage !== "applied") {
+      events.push({
+        date: pipeline.stage_changed_at,
+        icon: pipeline.stage === "rejected" ? "❌" : pipeline.stage === "hired" ? "🎉" : "🔄",
+        title: `${STAGE_LABELS[pipeline.stage]}に変更`,
+        detail: pipeline.score ? `AIスコア: ${pipeline.score}点` : "",
+        color: pipeline.stage === "hired" ? "bg-emerald-500" : pipeline.stage === "rejected" ? "bg-red-400" : "bg-blue-500",
+      });
+    }
+
+    // 面談記録
+    interviews.forEach((iv) => {
+      events.push({
+        date: iv.interview_date,
+        icon: "🎤",
+        title: `${INTERVIEW_TYPE_LABELS[iv.interview_type] || iv.interview_type}`,
+        detail: `面接官: ${iv.interviewer_name}${iv.rating ? ` / 評価: ${"⭐".repeat(iv.rating)}` : ""}`,
+        color: "bg-violet-500",
+      });
+    });
+
+    // AIアクション
+    aiLogs.forEach((log) => {
+      const typeLabels: Record<string, string> = {
+        screening: "📄 AI書類選考",
+        auto_screening: "📄 自動書類選考",
+        interview_questions: "🎤 面接質問生成",
+        judgment: "⚖️ 合否判定",
+        handover: "📝 申し送り作成",
+        offer_letter: "💌 オファーレター",
+        email: "✉️ メール生成",
+        interview_summary: "📋 面談サマリー",
+      };
+      events.push({
+        date: log.created_at,
+        icon: "🤖",
+        title: typeLabels[log.action_type] || `AI: ${log.action_type}`,
+        detail: log.result.slice(0, 80) + (log.result.length > 80 ? "..." : ""),
+        color: "bg-cyan-500",
+      });
+    });
+
+    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
 
   const inputClass = "w-full px-3 py-2.5 rounded-lg border border-gray-200 text-[13px] outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100";
 
@@ -356,6 +416,49 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Timeline Tab */}
+          {activeTab === "timeline" && (
+            <div>
+              <h3 className="text-[14px] font-bold text-gray-700 mb-4">📅 候補者タイムライン</h3>
+              {(() => {
+                const timeline = buildTimeline();
+                if (timeline.length === 0) {
+                  return (
+                    <div className="text-center py-10 text-gray-400">
+                      <div className="text-4xl mb-3">📅</div>
+                      <div className="text-[13px]">まだアクティビティがありません</div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="relative">
+                    <div className="absolute left-[18px] top-0 bottom-0 w-0.5 bg-gray-200" />
+                    <div className="space-y-4">
+                      {timeline.map((evt, idx) => (
+                        <div key={idx} className="flex items-start gap-4 relative">
+                          <div className={`w-9 h-9 rounded-full ${evt.color} flex items-center justify-center text-[14px] shrink-0 z-10 shadow-sm`}>
+                            {evt.icon}
+                          </div>
+                          <div className="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[12px] font-bold text-gray-800">{evt.title}</span>
+                              <span className="text-[10px] text-gray-400">
+                                {new Date(evt.date).toLocaleDateString("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            {evt.detail && (
+                              <div className="text-[11px] text-gray-500 leading-relaxed">{evt.detail}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
