@@ -21,6 +21,7 @@ export default function JobsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingJob, setEditingJob] = useState<Partial<Job> | null>(null);
   const [pipelineCounts, setPipelineCounts] = useState<Record<string, number>>({});
+  const [copiedJobId, setCopiedJobId] = useState<string | null>(null);
 
   useEffect(() => {
     loadJobs();
@@ -162,6 +163,21 @@ export default function JobsPage() {
                     className="text-[12px] text-gray-500 hover:text-gray-700 font-semibold px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
                   >
                     {job.status === "open" ? "一時停止" : "再開"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/apply/${job.id}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedJobId(job.id);
+                      setTimeout(() => setCopiedJobId(null), 2000);
+                    }}
+                    className={`text-[12px] font-semibold px-3 py-1.5 rounded-md transition-colors ml-auto ${
+                      copiedJobId === job.id
+                        ? "text-emerald-600 bg-emerald-50"
+                        : "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                    }`}
+                  >
+                    {copiedJobId === job.id ? "✓ コピー済み" : "🔗 応募URL"}
                   </button>
                 </div>
               </div>
