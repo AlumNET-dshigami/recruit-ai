@@ -13,6 +13,7 @@ export default function AtsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedJobId, setSelectedJobId] = useState("all");
+  const [selectedStage, setSelectedStage] = useState("all");
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [showRegister, setShowRegister] = useState(false);
 
@@ -28,9 +29,9 @@ export default function AtsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filtered = selectedJobId === "all"
-    ? pipeline
-    : pipeline.filter((p) => p.job_id === selectedJobId);
+  const filtered = pipeline
+    .filter((p) => selectedJobId === "all" || p.job_id === selectedJobId)
+    .filter((p) => selectedStage === "all" || p.stage === selectedStage);
 
   const stageStyles: Record<string, string> = {
     applied: "bg-gray-100 text-gray-600",
@@ -56,6 +57,20 @@ export default function AtsPage() {
             <p className="text-[13px] text-gray-400 mt-0.5">候補者をクリックして詳細・AIサポートを実行</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedStage}
+              onChange={(e) => setSelectedStage(e.target.value)}
+              className="px-4 py-2 rounded-lg border border-gray-200 text-[13px] outline-none bg-white"
+            >
+              <option value="all">全ステージ</option>
+              <option value="applied">応募受付</option>
+              <option value="screening">書類選考</option>
+              <option value="interview1">1次面接</option>
+              <option value="interview_final">最終面接</option>
+              <option value="offer">内定</option>
+              <option value="hired">入社</option>
+              <option value="rejected">不合格</option>
+            </select>
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}

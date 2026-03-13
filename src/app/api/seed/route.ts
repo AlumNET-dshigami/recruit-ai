@@ -77,32 +77,32 @@ const CANDIDATES = [
   { name: "藤田ゆき", email: "fujita@example.com", current_company: "note", current_position: "UIデザイナー", experience_years: 4, skills: ["Figma", "UI/UX", "Frontend CSS"], source: "Wantedly", resume_text: "noteにてプロダクトUI/UXデザインを4年間担当。CSSも書けるデザイナー。" },
 ];
 
-// 候補者を案件・ステージに配置するマッピング
-const PIPELINE_ASSIGNMENTS = [
+// 候補者を案件・ステージに配置するマッピング（日付オフセット付き）
+const PIPELINE_ASSIGNMENTS: { jobIdx: number; candIdx: number; stage: string; score: number | null; daysAgo?: number; stageChangedDaysAgo?: number }[] = [
   // FEエンジニア (job index 0)
-  { jobIdx: 0, candIdx: 0, stage: "interview_final", score: 85 },
-  { jobIdx: 0, candIdx: 5, stage: "screening", score: 72 },
-  { jobIdx: 0, candIdx: 8, stage: "interview1", score: 78 },
-  { jobIdx: 0, candIdx: 13, stage: "applied", score: null },
-  { jobIdx: 0, candIdx: 16, stage: "applied", score: null },
+  { jobIdx: 0, candIdx: 0, stage: "interview_final", score: 85, daysAgo: 14, stageChangedDaysAgo: 0 },
+  { jobIdx: 0, candIdx: 5, stage: "screening", score: 72, daysAgo: 7, stageChangedDaysAgo: 0 },
+  { jobIdx: 0, candIdx: 8, stage: "interview1", score: 78, daysAgo: 12, stageChangedDaysAgo: 0 },
+  { jobIdx: 0, candIdx: 13, stage: "applied", score: null, daysAgo: 2, stageChangedDaysAgo: 0 },
+  { jobIdx: 0, candIdx: 16, stage: "screening", score: 100, daysAgo: 5, stageChangedDaysAgo: 0 },
   // BEエンジニア (job index 1)
-  { jobIdx: 1, candIdx: 2, stage: "interview1", score: 91 },
-  { jobIdx: 1, candIdx: 6, stage: "screening", score: 68 },
-  { jobIdx: 1, candIdx: 14, stage: "offer", score: 82 },
-  { jobIdx: 1, candIdx: 18, stage: "applied", score: null },
+  { jobIdx: 1, candIdx: 2, stage: "interview1", score: 91, daysAgo: 18, stageChangedDaysAgo: 0 },
+  { jobIdx: 1, candIdx: 6, stage: "rejected", score: 68, daysAgo: 20, stageChangedDaysAgo: 0 },
+  { jobIdx: 1, candIdx: 14, stage: "offer", score: 82, daysAgo: 25, stageChangedDaysAgo: 0 },
+  { jobIdx: 1, candIdx: 18, stage: "applied", score: null, daysAgo: 3, stageChangedDaysAgo: 0 },
   // PM (job index 2)
-  { jobIdx: 2, candIdx: 1, stage: "interview_final", score: 88 },
-  { jobIdx: 2, candIdx: 7, stage: "interview1", score: 80 },
-  { jobIdx: 2, candIdx: 15, stage: "screening", score: 75 },
+  { jobIdx: 2, candIdx: 1, stage: "interview_final", score: 88, daysAgo: 21, stageChangedDaysAgo: 0 },
+  { jobIdx: 2, candIdx: 7, stage: "interview1", score: 80, daysAgo: 10, stageChangedDaysAgo: 0 },
+  { jobIdx: 2, candIdx: 15, stage: "screening", score: 75, daysAgo: 6, stageChangedDaysAgo: 0 },
   // UIデザイナー (job index 3)
-  { jobIdx: 3, candIdx: 3, stage: "hired", score: 90 },
-  { jobIdx: 3, candIdx: 11, stage: "offer", score: 83 },
-  { jobIdx: 3, candIdx: 19, stage: "screening", score: 70 },
+  { jobIdx: 3, candIdx: 3, stage: "hired", score: 90, daysAgo: 30, stageChangedDaysAgo: 0 },
+  { jobIdx: 3, candIdx: 11, stage: "offer", score: 83, daysAgo: 15, stageChangedDaysAgo: 0 },
+  { jobIdx: 3, candIdx: 19, stage: "screening", score: 70, daysAgo: 8, stageChangedDaysAgo: 0 },
   // データサイエンティスト (job index 4)
-  { jobIdx: 4, candIdx: 4, stage: "interview1", score: 86 },
-  { jobIdx: 4, candIdx: 9, stage: "screening", score: 65 },
-  { jobIdx: 4, candIdx: 10, stage: "offer", score: 92 },
-  { jobIdx: 4, candIdx: 17, stage: "interview_final", score: 84 },
+  { jobIdx: 4, candIdx: 4, stage: "interview1", score: 86, daysAgo: 16, stageChangedDaysAgo: 0 },
+  { jobIdx: 4, candIdx: 9, stage: "screening", score: 65, daysAgo: 9, stageChangedDaysAgo: 0 },
+  { jobIdx: 4, candIdx: 10, stage: "offer", score: 92, daysAgo: 22, stageChangedDaysAgo: 0 },
+  { jobIdx: 4, candIdx: 17, stage: "interview_final", score: 84, daysAgo: 19, stageChangedDaysAgo: 0 },
 ];
 
 export async function POST() {
@@ -127,15 +127,22 @@ export async function POST() {
       .select();
     if (candidatesError) throw candidatesError;
 
-    // パイプライン投入
-    const pipelineRows = PIPELINE_ASSIGNMENTS.map((a) => ({
-      job_id: jobsData![a.jobIdx].id,
-      candidate_id: candidatesData![a.candIdx].id,
-      stage: a.stage,
-      score: a.score,
-      ai_summary: a.score ? `AI評価スコア: ${a.score}/100` : "",
-      notes: "",
-    }));
+    // パイプライン投入（日付バリエーション付き）
+    const now = new Date();
+    const pipelineRows = PIPELINE_ASSIGNMENTS.map((a) => {
+      const createdAt = new Date(now.getTime() - (a.daysAgo || 0) * 86400000);
+      const stageChangedAt = new Date(now.getTime() - (a.stageChangedDaysAgo || 0) * 86400000);
+      return {
+        job_id: jobsData![a.jobIdx].id,
+        candidate_id: candidatesData![a.candIdx].id,
+        stage: a.stage,
+        score: a.score,
+        ai_summary: a.score ? `AI評価スコア: ${a.score}/100` : "",
+        notes: "",
+        created_at: createdAt.toISOString(),
+        stage_changed_at: stageChangedAt.toISOString(),
+      };
+    });
 
     const { error: pipelineError } = await supabase
       .from("pipeline")

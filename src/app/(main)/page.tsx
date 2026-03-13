@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { STAGE_ORDER, STAGE_LABELS } from "@/lib/types";
 import type { Pipeline, Job, PipelineStage } from "@/lib/types";
@@ -133,15 +134,23 @@ export default function Dashboard() {
     );
   }
 
-  const kpiCards = [
-    { label: "進行中の案件", value: kpi.openJobs, unit: "件", color: "text-blue-600", icon: "💼" },
-    { label: "候補者数", value: kpi.totalCandidates, unit: "名", color: "text-emerald-600", icon: "👥" },
-    { label: "今月の面接", value: kpi.interviewsThisMonth, unit: "件", color: "text-violet-600", icon: "🎤" },
+  // ② KPIカード並び替え: 今週の新規応募を左側、内定率・平均選考日数を右側
+  const kpiCards: {
+    label: string;
+    value: number | string;
+    unit: string;
+    color: string;
+    icon: string;
+    href?: string;
+  }[] = [
+    { label: "進行中の案件", value: kpi.openJobs, unit: "件", color: "text-blue-600", icon: "💼", href: "/ats/pipeline" },
+    { label: "候補者数", value: kpi.totalCandidates, unit: "名", color: "text-emerald-600", icon: "👥", href: "/ats/pipeline" },
+    { label: "今月の面接", value: kpi.interviewsThisMonth, unit: "件", color: "text-violet-600", icon: "🎤", href: "/ats/pipeline" },
+    { label: "今週の新規応募", value: kpi.newAppsThisWeek, unit: "名", color: "text-blue-600", icon: "📩", href: "/ats/pipeline" },
+    { label: "今月の入社", value: kpi.hiredThisMonth, unit: "名", color: "text-emerald-600", icon: "✅", href: "/ats/pipeline" },
+    { label: "今月の不合格", value: kpi.rejectedThisMonth, unit: "名", color: "text-red-500", icon: "❌", href: "/ats/pipeline" },
     { label: "内定率", value: kpi.offerRate, unit: "%", color: "text-amber-600", icon: "🎯" },
     { label: "平均選考日数", value: kpi.avgDaysToHire ?? "—", unit: kpi.avgDaysToHire ? "日" : "", color: "text-cyan-600", icon: "⏱️" },
-    { label: "今月の入社", value: kpi.hiredThisMonth, unit: "名", color: "text-emerald-600", icon: "✅" },
-    { label: "今月の不合格", value: kpi.rejectedThisMonth, unit: "名", color: "text-red-500", icon: "❌" },
-    { label: "今週の新規応募", value: kpi.newAppsThisWeek, unit: "名", color: "text-blue-600", icon: "📩" },
   ];
 
   const chartData = {
@@ -172,7 +181,7 @@ export default function Dashboard() {
     },
   };
 
-  // 求人別の進捗
+  // 求人別の進捗 + AIアドバイス生成
   const jobProgress = jobs.filter((j) => j.status === "open").map((job) => {
     const jobPipeline = pipeline.filter((p) => p.job_id === job.id);
     const stages: Record<string, number> = {};
@@ -180,8 +189,64 @@ export default function Dashboard() {
       stages[s] = jobPipeline.filter((p) => p.stage === s).length;
     });
     const rejected = jobPipeline.filter((p) => p.stage === "rejected").length;
-    return { job, stages, rejected, total: jobPipeline.length };
+    const total = jobPipeline.length;
+
+    // ④ AIアドバイス生成
+    let aiAdvice: string | null = null;
+    if (total >= 3) {
+      const interview1Count = stages["interview1"] || 0;
+      const interviewFinalCount = stages["interview_final"] || 0;
+      const offerCount = stages["offer"] || 0;
+      const hiredCount = stages["hired"] || 0;
+      const screeningCount = stages["screening"] || 0;
+      const appliedCount = stages["applied"] || 0;
+
+      // 面接での歩留まりが悪い
+      if (interview1Count + interviewFinalCount > 0 && offerCount + hiredCount === 0 && rejected >= 2) {
+        aiAdvice = "💡 面接通過率が低めです。面接官との評価基準のすり合わせを推奨します";
+      }
+      // 内定辞退が多い（offerに溜まっている）
+      else if (offerCount >= 2 && hiredCount === 0) {
+        aiAdvice = "💡 内定承諾待ちが多いです。オファーメール作成やクロージング戦略を検討しましょう";
+      }
+      // 書類選考に溜まっている
+      else if (screeningCount >= 3) {
+        aiAdvice = "💡 書類選考に滞留があります。AIスクリーニングで効率化しましょう";
+      }
+      // 応募が溜まっている
+      else if (appliedCount >= 3) {
+        aiAdvice = "💡 未処理の応募があります。早めのスクリーニングを推奨します";
+      }
+      // 順調
+      else if (hiredCount >= 1) {
+        aiAdvice = "✨ 入社実績あり！順調に進んでいます";
+      }
+    }
+
+    return { job, stages, rejected, total, aiAdvice };
   });
+
+  // ③ ステージラベルの色分け
+  function stageColor(stage: string): string {
+    switch (stage) {
+      case "hired":
+        return "bg-purple-600 text-white";
+      case "offer":
+        return "bg-purple-400 text-white";
+      case "interview_final":
+        return "bg-yellow-100 text-yellow-700";
+      case "interview1":
+        return "bg-green-100 text-green-700";
+      case "screening":
+        return "bg-blue-100 text-blue-700";
+      case "applied":
+        return "bg-slate-100 text-slate-600";
+      case "rejected":
+        return "bg-red-100 text-red-600";
+      default:
+        return "bg-slate-100 text-slate-600";
+    }
+  }
 
   return (
     <div className="px-4 md:px-7 py-4 md:py-6">
@@ -190,27 +255,42 @@ export default function Dashboard() {
           🏠 ダッシュボード
         </h1>
 
-        {/* KPI Cards - 2行4列 */}
+        {/* ① KPI Cards - リンク化 + ② 並び替え済み */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {kpiCards.map((card) => (
-            <div
-              key={card.label}
-              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  {card.label}
+          {kpiCards.map((card) => {
+            const content = (
+              <div
+                className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 transition-all ${
+                  card.href ? "hover:shadow-md hover:border-blue-200 cursor-pointer" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                    {card.label}
+                  </div>
+                  <span className="text-[18px]">{card.icon}</span>
                 </div>
-                <span className="text-[18px]">{card.icon}</span>
+                <div className="flex items-end gap-1">
+                  <span className={`text-2xl font-extrabold ${card.color}`}>
+                    {card.value}
+                  </span>
+                  <span className="text-[12px] text-gray-400 mb-0.5">{card.unit}</span>
+                </div>
+                {card.href && (
+                  <div className="text-[9px] text-blue-400 mt-1.5 font-semibold">
+                    詳細を見る →
+                  </div>
+                )}
               </div>
-              <div className="flex items-end gap-1">
-                <span className={`text-2xl font-extrabold ${card.color}`}>
-                  {card.value}
-                </span>
-                <span className="text-[12px] text-gray-400 mb-0.5">{card.unit}</span>
-              </div>
-            </div>
-          ))}
+            );
+            return card.href ? (
+              <Link key={card.label} href={card.href} className="no-underline">
+                {content}
+              </Link>
+            ) : (
+              <div key={card.label}>{content}</div>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -224,13 +304,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Job Progress */}
+          {/* ④ Job Progress + AIアドバイスポップ */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-[15px] font-bold text-gray-700 mb-4">
               💼 案件別進捗
             </h2>
             <div className="space-y-4">
-              {jobProgress.map(({ job, stages, total }) => (
+              {jobProgress.map(({ job, stages, total, aiAdvice }) => (
                 <div key={job.id}>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[13px] font-bold text-gray-700">{job.title}</span>
@@ -265,6 +345,11 @@ export default function Dashboard() {
                       );
                     })}
                   </div>
+                  {aiAdvice && (
+                    <div className="mt-1.5 text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-1.5 border border-indigo-100">
+                      {aiAdvice}
+                    </div>
+                  )}
                 </div>
               ))}
               {jobProgress.length === 0 && (
@@ -293,7 +378,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* ③ Recent Activity - ステージラベル色分け */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mt-6">
           <h2 className="text-[15px] font-bold text-gray-700 mb-4">
             🕐 最近のアクティビティ
@@ -331,11 +416,7 @@ export default function Dashboard() {
                     </span>
                     <span className="text-gray-400">→</span>
                     <span className="text-gray-600">{jobTitle}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      p.stage === "hired" ? "bg-emerald-100 text-emerald-700" :
-                      p.stage === "rejected" ? "bg-red-100 text-red-600" :
-                      "bg-slate-100 text-slate-600"
-                    }`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stageColor(p.stage)}`}>
                       {STAGE_LABELS[p.stage as PipelineStage] || p.stage}
                     </span>
                     <span className="ml-auto text-[10px] text-gray-400">

@@ -26,8 +26,14 @@ export default function ComparePage() {
     load();
   }, []);
 
+  // 選考中の候補者（rejected除外）
   const filtered = pipeline
-    .filter((p) => p.job_id === selectedJobId && p.stage !== "rejected")
+    .filter((p) => p.job_id === selectedJobId && p.stage !== "rejected" && p.stage !== "hired")
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  // 入社済み・辞退者（同じ求人の過去データ）
+  const hiredOrDeclined = pipeline
+    .filter((p) => p.job_id === selectedJobId && (p.stage === "hired" || p.stage === "rejected"))
     .sort((a, b) => (b.score || 0) - (a.score || 0));
 
   if (loading) {
@@ -154,6 +160,72 @@ export default function ComparePage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ⑦ 入社者・不合格/辞退者 */}
+        {hiredOrDeclined.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-[15px] font-bold text-gray-600 mb-4">
+              📁 過去の入社者・不合格/辞退者
+            </h2>
+            <div className="overflow-x-auto">
+              <div className="flex gap-4 min-w-max pb-4">
+                {hiredOrDeclined.map((p) => {
+                  const c = p.candidate as Candidate | undefined;
+                  const isHired = p.stage === "hired";
+                  return (
+                    <div key={p.id} className={`w-[240px] rounded-xl shadow-sm border shrink-0 ${
+                      isHired ? "bg-gray-50 border-emerald-200" : "bg-pink-50/50 border-pink-200"
+                    }`}>
+                      <div className={`text-center py-1.5 text-[11px] font-bold rounded-t-xl ${
+                        isHired ? "bg-emerald-600 text-white" : "bg-pink-400 text-white"
+                      }`}>
+                        {isHired ? "✅ 入社済み" : "❌ 不合格/辞退"}
+                      </div>
+                      <div className="p-4">
+                        <div className="text-center mb-3">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-[18px] mx-auto mb-2 ${
+                            isHired ? "bg-emerald-400" : "bg-pink-300"
+                          }`}>
+                            {c?.name?.charAt(0) || "?"}
+                          </div>
+                          <div className="text-[14px] font-bold text-gray-800">{c?.name}</div>
+                          <div className="text-[11px] text-gray-400">{c?.current_company}</div>
+                        </div>
+                        {p.score && (
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-gray-400">AIスコア</span>
+                            <span className={`text-[14px] font-extrabold ${
+                              p.score >= 80 ? "text-emerald-600" : p.score >= 60 ? "text-amber-600" : "text-red-500"
+                            }`}>{p.score}</span>
+                          </div>
+                        )}
+                        <div className="space-y-2 text-[11px]">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">経験年数</span>
+                            <span className="font-semibold text-gray-700">{c?.experience_years}年</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">ソース</span>
+                            <span className="font-semibold text-gray-700">{c?.source}</span>
+                          </div>
+                        </div>
+                        {c?.skills && c.skills.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex flex-wrap gap-1">
+                              {c.skills.map((s) => (
+                                <span key={s} className="text-[9px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

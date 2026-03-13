@@ -38,6 +38,8 @@ export default function CultureFitPage() {
     personality_type: "",
     performance_score: 5,
     notes: "",
+    sales_amount: "",
+    achievement_rate: "",
   });
 
   const loadData = useCallback(async () => {
@@ -72,8 +74,10 @@ export default function CultureFitPage() {
       personality_type: form.personality_type.trim(),
       performance_score: form.performance_score,
       notes: form.notes.trim(),
+      sales_amount: form.sales_amount.trim() || null,
+      achievement_rate: form.achievement_rate ? parseFloat(form.achievement_rate) : null,
     }]);
-    setForm({ name: "", role: "", department: "", traits: "", strengths: "", values: "", personality_type: "", performance_score: 5, notes: "" });
+    setForm({ name: "", role: "", department: "", traits: "", strengths: "", values: "", personality_type: "", performance_score: 5, notes: "", sales_amount: "", achievement_rate: "" });
     setShowAdd(false);
     loadData();
   }
@@ -309,6 +313,16 @@ AIスコア: ${p?.score || "未評価"}
               <div>
                 <label className="text-[11px] font-bold text-gray-500 block mb-1">価値観（カンマ区切り）</label>
                 <input className={inputClass} value={form.values} onChange={(e) => setForm((f) => ({ ...f, values: e.target.value }))} placeholder="成長志向, チームワーク, 顧客第一" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">売上金額（任意）</label>
+                  <input className={inputClass} value={form.sales_amount} onChange={(e) => setForm((f) => ({ ...f, sales_amount: e.target.value }))} placeholder="例: 5,000万円 / 年間1.2億" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">目標達成率 %（任意）</label>
+                  <input className={inputClass} type="number" min={0} max={999} value={form.achievement_rate} onChange={(e) => setForm((f) => ({ ...f, achievement_rate: e.target.value }))} placeholder="例: 150" />
+                </div>
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-500 block mb-1">メモ</label>

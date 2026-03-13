@@ -20,6 +20,7 @@ export default function PipelinePage() {
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [noteText, setNoteText] = useState("");
 
   const loadData = useCallback(async () => {
     const [jobsRes, pipelineRes] = await Promise.all([
@@ -57,8 +58,17 @@ export default function PipelinePage() {
     setSelectedPipeline(null);
   }
 
+  async function saveNote(pipelineId: string) {
+    await supabase
+      .from("pipeline")
+      .update({ note: noteText })
+      .eq("id", pipelineId);
+    loadData();
+  }
+
   async function openDetail(p: Pipeline) {
     setSelectedPipeline(p);
+    setNoteText((p as Pipeline & { note?: string }).note || "");
     const { data } = await supabase
       .from("ai_logs")
       .select("*")
@@ -242,6 +252,12 @@ export default function PipelinePage() {
                           {c?.source}
                         </span>
                       </div>
+                      {/* メモ（申し送り事項） */}
+                      {(p as Pipeline & { note?: string }).note && (
+                        <div className="text-[10px] text-gray-500 bg-yellow-50 border border-yellow-100 rounded px-2 py-1 mb-2 line-clamp-2">
+                          📝 {(p as Pipeline & { note?: string }).note}
+                        </div>
+                      )}
                       <div
                         className="flex gap-1"
                         onClick={(e) => e.stopPropagation()}
@@ -362,6 +378,25 @@ export default function PipelinePage() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* メモ（申し送り事項） */}
+              <div className="mb-6">
+                <h3 className="text-[13px] font-bold text-gray-600 mb-3">
+                  📝 申し送りメモ
+                </h3>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="次回への申し送り事項（例：F面で口説いてください、800万で条件書作成希望）"
+                  className="w-full text-[12px] border border-gray-200 rounded-lg px-3 py-2 h-20 resize-none outline-none focus:border-blue-300"
+                />
+                <button
+                  onClick={() => saveNote(selectedPipeline!.id)}
+                  className="mt-2 text-[11px] font-bold text-white bg-blue-500 px-4 py-1.5 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  メモを保存
+                </button>
               </div>
 
               {/* AI Logs */}
