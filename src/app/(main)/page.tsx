@@ -15,6 +15,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import StepNavigation, { WorkflowGuide } from "@/components/StepNavigation";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -251,9 +252,12 @@ export default function Dashboard() {
   return (
     <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
-        <h1 className="text-2xl font-extrabold text-gray-800 mb-6">
+        <h1 className="text-2xl font-extrabold text-gray-800 mb-4">
           🏠 ダッシュボード
         </h1>
+
+        {/* ワークフローガイド */}
+        <WorkflowGuide />
 
         {/* ① KPI Cards - リンク化 + ② 並び替え済み */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -427,6 +431,7 @@ export default function Dashboard() {
               })}
           </div>
         </div>
+        <StepNavigation />
       </div>
     </div>
   );

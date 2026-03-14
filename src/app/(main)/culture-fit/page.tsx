@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Pipeline, Candidate } from "@/lib/types";
+import StepNavigation from "@/components/StepNavigation";
 
 interface HighPerformerProfile {
   id: string;
@@ -501,6 +502,7 @@ AIスコア: ${p?.score || "未評価"}
           </div>
         </div>
       </div>
+      <StepNavigation />
     </div>
   );
 }

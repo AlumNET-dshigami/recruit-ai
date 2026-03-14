@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import StepNavigation from "@/components/StepNavigation";
 import TabJob from "@/components/tabs/TabJob";
 import TabScout from "@/components/tabs/TabScout";
 import TabBranding from "@/components/tabs/TabBranding";
@@ -95,6 +96,7 @@ export default function SourcingPage() {
             {TAB_COMPONENTS[activeTab]}
           </div>
         </div>
+        <StepNavigation />
       </div>
     </div>
   );

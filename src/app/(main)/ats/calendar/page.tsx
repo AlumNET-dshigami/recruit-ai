@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { INTERVIEW_TYPE_LABELS } from "@/lib/types";
+import StepNavigation from "@/components/StepNavigation";
 import type { InterviewRecord, Candidate } from "@/lib/types";
 
 interface CalendarEvent extends InterviewRecord {
@@ -264,6 +265,7 @@ export default function InterviewCalendarPage() {
             )}
           </div>
         </div>
+        <StepNavigation />
       </div>
     </div>
   );

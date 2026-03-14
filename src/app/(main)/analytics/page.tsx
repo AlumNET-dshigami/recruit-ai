@@ -17,6 +17,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
+import StepNavigation from "@/components/StepNavigation";
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
@@ -634,6 +635,7 @@ ${agentSummary}
             )}
           </>
         )}
+        <StepNavigation />
       </div>
     </div>
   );

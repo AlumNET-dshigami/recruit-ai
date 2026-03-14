@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Job } from "@/lib/types";
+import StepNavigation from "@/components/StepNavigation";
 
 const EMPTY_JOB = {
   title: "",
@@ -218,6 +219,7 @@ export default function JobsPage() {
             );
           })}
         </div>
+        <StepNavigation />
       </div>
 
       {/* Modal */}

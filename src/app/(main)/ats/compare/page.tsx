@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { STAGE_LABELS } from "@/lib/types";
+import StepNavigation from "@/components/StepNavigation";
 import type { Pipeline, Job, Candidate, PipelineStage } from "@/lib/types";
 
 export default function ComparePage() {
@@ -230,6 +231,7 @@ export default function ComparePage() {
           </div>
         )}
       </div>
+      <StepNavigation />
     </div>
   );
 }

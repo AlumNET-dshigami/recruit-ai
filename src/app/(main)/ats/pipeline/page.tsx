@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import StepNavigation from "@/components/StepNavigation";
 import {
   STAGE_ORDER,
   STAGE_LABELS,
@@ -285,6 +286,8 @@ export default function PipelinePage() {
           );
         })}
       </div>
+
+      <StepNavigation />
 
       {/* Candidate Detail Modal */}
       {selectedPipeline && (

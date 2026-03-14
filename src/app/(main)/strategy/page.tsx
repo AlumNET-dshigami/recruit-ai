@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import StepNavigation from "@/components/StepNavigation";
 import TabPlan from "@/components/tabs/TabPlan";
 import TabPersona from "@/components/tabs/TabPersona";
 import TabSalary from "@/components/tabs/TabSalary";
@@ -190,6 +191,7 @@ export default function StrategyPage() {
             )}
           </div>
         </div>
+        <StepNavigation />
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import StepNavigation from "@/components/StepNavigation";
 import { supabase } from "@/lib/supabase";
 import { STAGE_LABELS } from "@/lib/types";
 import type { Pipeline, Job, Candidate, PipelineStage } from "@/lib/types";
@@ -157,6 +158,7 @@ export default function AtsPage() {
             <div className="text-center py-12 text-gray-400 text-[13px]">候補者がいません</div>
           )}
         </div>
+        <StepNavigation />
       </div>
 
       {/* Detail Modal */}
