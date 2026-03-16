@@ -24,7 +24,7 @@ export default function MainLayout({
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-white font-bold text-sm">Recruit AI</span>
+          <span className="text-white font-bold text-sm">Peers Recruit</span>
         </div>
         {children}
       </div>

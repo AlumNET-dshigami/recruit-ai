@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-primary: #334155;
-  --color-primary-dark: #1e293b;
-  --color-accent: #475569;
-  --color-sidebar: #1e293b;
-  --color-sidebar-active: rgba(255, 255, 255, 0.08);
+  --color-primary: #1d4ed8;
+  --color-primary-dark: #1e40af;
+  --color-accent: #3b82f6;
+  --color-sidebar: #0f172a;
+  --color-sidebar-active: rgba(59, 130, 246, 0.15);
   --color-danger: #dc2626;
   --color-card: #ffffff;
   --color-bg: #f1f5f9;

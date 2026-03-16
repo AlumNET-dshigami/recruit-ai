@@ -160,7 +160,7 @@ export default function ApplyPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-6 py-5">
-          <div className="text-[12px] font-bold text-blue-600 mb-1">Recruit AI</div>
+          <div className="text-[12px] font-bold text-blue-600 mb-1">株式会社ピアズ</div>
           <h1 className="text-2xl font-extrabold text-gray-800">{job.title}</h1>
           <div className="flex items-center gap-3 mt-2 text-[13px] text-gray-500">
             <span>{job.department}</span>
@@ -278,7 +278,7 @@ export default function ApplyPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-[11px] text-gray-400">
-          Powered by Recruit AI &copy; AlumNET 2026
+          Powered by Peers Recruit &copy; Peers, Inc. 2026
         </div>
       </div>
     </div>
