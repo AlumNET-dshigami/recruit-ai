@@ -23,6 +23,9 @@ const STEPS: Step[] = [
   { path: "/ats/calendar", icon: "📅", label: "面接カレンダー", phase: 3, phaseLabel: "フェーズ③", description: "面接日程の管理" },
   { path: "/analytics", icon: "📈", label: "数値分析", phase: 4, phaseLabel: "フェーズ④", description: "ファネル・リードタイム・レポート生成" },
   { path: "/culture-fit", icon: "🧬", label: "カルチャーフィット", phase: 4, phaseLabel: "フェーズ④", description: "ハイパフォーマー分析で文化適合度を定量化" },
+  { path: "/roi", icon: "💰", label: "採用ROI", phase: 5, phaseLabel: "フェーズ⑤", description: "チャネル別コスト・採用単価・投資対効果分析" },
+  { path: "/predictions", icon: "🔮", label: "予測分析", phase: 5, phaseLabel: "フェーズ⑤", description: "内定承諾率・離脱リスク・パイプライン予測" },
+  { path: "/interview-coach", icon: "🎓", label: "面接AIコーチ", phase: 5, phaseLabel: "フェーズ⑤", description: "面接官のパフォーマンス分析とAIコーチング" },
 ];
 
 const PHASE_COLORS: Record<number, string> = {
@@ -31,6 +34,7 @@ const PHASE_COLORS: Record<number, string> = {
   2: "bg-emerald-100 text-emerald-700",
   3: "bg-purple-100 text-purple-700",
   4: "bg-amber-100 text-amber-700",
+  5: "bg-rose-100 text-rose-700",
 };
 
 export default function StepNavigation() {
@@ -46,7 +50,7 @@ export default function StepNavigation() {
     <nav className="mt-8 mb-2 border-t border-gray-100 pt-6">
       {/* Phase indicator */}
       <div className="flex items-center justify-center gap-1.5 mb-4">
-        {[0, 1, 2, 3, 4].map((phase) => {
+        {[0, 1, 2, 3, 4, 5].map((phase) => {
           const isActive = current.phase === phase;
           return (
             <div
@@ -135,13 +139,21 @@ export function WorkflowGuide() {
         { icon: "🧬", label: "カルチャーフィット", path: "/culture-fit", desc: "ハイパフォーマー分析" },
       ],
     },
+    {
+      phase: 5, label: "フェーズ⑤", title: "AI高度機能",
+      steps: [
+        { icon: "💰", label: "採用ROI", path: "/roi", desc: "コスト・投資対効果" },
+        { icon: "🔮", label: "予測分析", path: "/predictions", desc: "承諾予測・離脱リスク" },
+        { icon: "🎓", label: "面接AIコーチ", path: "/interview-coach", desc: "面接官のAIコーチング" },
+      ],
+    },
   ];
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-6">
       <h2 className="text-[15px] font-bold text-gray-700 mb-1">🗺️ 採用ワークフロー</h2>
       <p className="text-[11px] text-gray-400 mb-4">各フェーズをクリックして採用業務を進められます</p>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         {phases.map((p) => (
           <div key={p.phase} className="relative">
             <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mb-2 ${PHASE_COLORS[p.phase]}`}>

@@ -49,6 +49,14 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "フェーズ⑤",
+    items: [
+      { href: "/roi", icon: "💰", label: "採用ROI" },
+      { href: "/predictions", icon: "🔮", label: "予測分析" },
+      { href: "/interview-coach", icon: "🎓", label: "面接AIコーチ" },
+    ],
+  },
+  {
     items: [{ href: "/settings", icon: "⚙️", label: "設定" }],
   },
 ];
