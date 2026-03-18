@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { STAGE_LABELS, INTERVIEW_TYPE_LABELS } from "@/lib/types";
-import type { Pipeline, Candidate, AiLog, InterviewRecord, PipelineStage } from "@/lib/types";
+import { STAGE_LABELS, INTERVIEW_TYPE_LABELS, MIKIWAME_TRAIT_LABELS, MIKIWAME_SCORE_LABELS } from "@/lib/types";
+import type { Pipeline, Candidate, AiLog, InterviewRecord, PipelineStage, MikiwameResult } from "@/lib/types";
 
 interface Props {
   pipeline: Pipeline;
@@ -11,7 +11,7 @@ interface Props {
   onUpdated: () => void;
 }
 
-type Tab = "profile" | "timeline" | "interviews" | "ai_logs" | "email";
+type Tab = "profile" | "timeline" | "interviews" | "ai_logs" | "email" | "mikiwame";
 
 const STAGE_ORDER: PipelineStage[] = ["applied", "screening", "interview1", "interview_final", "offer", "hired"];
 
@@ -30,6 +30,8 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
     rating: "",
   });
   const [hasInterviewTable, setHasInterviewTable] = useState(true);
+  const [mikiwameData, setMikiwameData] = useState<MikiwameResult[]>([]);
+  const [mikiwameOrg, setMikiwameOrg] = useState<Record<string, number>>({});
 
   const candidate = pipeline.candidate as Candidate | undefined;
   const jobTitle = (pipeline.job as unknown as { title: string })?.title || "";
@@ -37,6 +39,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
   useEffect(() => {
     loadLogs();
     loadInterviews();
+    loadMikiwame();
   }, [pipeline.id]);
 
   async function loadLogs() {
@@ -56,6 +59,28 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
       setHasInterviewTable(false);
     } else {
       setInterviews((data || []) as InterviewRecord[]);
+    }
+  }
+
+  async function loadMikiwame() {
+    if (!candidate?.email) return;
+    // Check if candidate has MIKIWAME data
+    const { data: personal } = await supabase
+      .from("mikiwame_results")
+      .select("*")
+      .eq("email", candidate.email);
+    setMikiwameData((personal || []) as MikiwameResult[]);
+    // Get org averages for comparison
+    const { data: all } = await supabase.from("mikiwame_results").select("traits");
+    if (all && all.length > 0) {
+      type TraitsRow = { traits: Record<string, number> };
+      const traitKeys = Object.keys((all[0] as TraitsRow).traits || {});
+      const avgs: Record<string, number> = {};
+      traitKeys.forEach((k) => {
+        const vals = all.map((r) => (r as TraitsRow).traits?.[k]).filter((v) => v != null) as number[];
+        avgs[k] = vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+      });
+      setMikiwameOrg(avgs);
     }
   }
 
@@ -235,6 +260,7 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
     { id: "interviews", label: "面談記録", count: interviews.length },
     { id: "email", label: "メール文面", count: emailLogs.length },
     { id: "ai_logs", label: "AIログ", count: aiLogs.length },
+    { id: "mikiwame", label: "MIKIWAME", count: mikiwameData.length },
   ];
 
   // タイムライン用データ構築
@@ -637,6 +663,112 @@ export default function CandidateDetailModal({ pipeline, onClose, onUpdated }: P
                   <div className="text-[12px] text-gray-600 whitespace-pre-wrap leading-relaxed">{log.result}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* MIKIWAME Tab */}
+          {activeTab === "mikiwame" && (
+            <div>
+              {mikiwameData.length === 0 ? (
+                <div>
+                  <div className="text-center py-6 text-gray-400 mb-4">
+                    <div className="text-4xl mb-3">📊</div>
+                    <div className="text-[13px]">この候補者のMIKIWAME結果はありません</div>
+                  </div>
+                  {Object.keys(mikiwameOrg).length > 0 && (
+                    <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                      <div className="text-[12px] font-bold text-indigo-700 mb-2">組織プロファイル参考値</div>
+                      <div className="text-[11px] text-indigo-600 mb-3">
+                        MIKIWAME受検済み社員の平均特性値です。候補者面談時の参考にしてください。
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {Object.entries(MIKIWAME_TRAIT_LABELS).slice(0, 10).map(([key, label]) => (
+                          <div key={key} className="bg-white/60 rounded px-2 py-1.5 flex items-center justify-between">
+                            <span className="text-[10px] text-gray-600">{label}</span>
+                            <span className="text-[11px] font-bold text-indigo-600">
+                              {mikiwameOrg[key] ? mikiwameOrg[key].toFixed(1) : "-"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {mikiwameData.map((m) => (
+                    <div key={m.id}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-[10px] text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full font-bold">
+                          {m.personality_type}
+                        </span>
+                        {m.assessed_at && (
+                          <span className="text-[10px] text-gray-400">
+                            検査日: {new Date(m.assessed_at).toLocaleDateString("ja-JP")}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Trait comparison table */}
+                      <div className="mb-4">
+                        <div className="text-[11px] font-bold text-gray-500 mb-2">性格特性（vs 全社平均）</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(MIKIWAME_TRAIT_LABELS).map(([key, label]) => {
+                            const val = m.traits?.[key];
+                            const orgVal = mikiwameOrg[key];
+                            if (val == null) return null;
+                            const diff = orgVal ? val - orgVal : 0;
+                            return (
+                              <div key={key} className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500 w-[100px] truncate">{label}</span>
+                                <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden relative">
+                                  {orgVal && (
+                                    <div className="absolute h-full w-0.5 bg-gray-400 z-10" style={{ left: `${(orgVal / 70) * 100}%` }} />
+                                  )}
+                                  <div
+                                    className={`h-full rounded-full ${diff > 3 ? "bg-emerald-400" : diff < -3 ? "bg-red-400" : "bg-blue-400"}`}
+                                    style={{ width: `${(val / 70) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-bold w-8 text-right">{val.toFixed(0)}</span>
+                                {orgVal && (
+                                  <span className={`text-[9px] w-10 text-right font-bold ${
+                                    diff > 3 ? "text-emerald-500" : diff < -3 ? "text-red-500" : "text-gray-400"
+                                  }`}>
+                                    {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Match Scores */}
+                      <div>
+                        <div className="text-[11px] font-bold text-gray-500 mb-2">マッチスコア</div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {Object.entries(MIKIWAME_SCORE_LABELS).map(([key, label]) => {
+                            const val = m.match_scores?.[key];
+                            const numVal = typeof val === "number" ? val : null;
+                            return (
+                              <div key={key} className="bg-gray-50 rounded px-2 py-1.5 text-center">
+                                <div className="text-[9px] text-gray-400">{label}</div>
+                                <div className={`text-[12px] font-bold ${
+                                  numVal && numVal >= 7 ? "text-emerald-600" :
+                                  numVal && numVal >= 5 ? "text-blue-600" : "text-gray-600"
+                                }`}>
+                                  {numVal ? numVal.toFixed(1) : val || "-"}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

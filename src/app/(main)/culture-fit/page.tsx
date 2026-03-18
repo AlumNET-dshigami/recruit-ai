@@ -1,508 +1,601 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+} from "chart.js";
+import { Radar, Bar } from "react-chartjs-2";
 import { supabase } from "@/lib/supabase";
-import type { Pipeline, Candidate } from "@/lib/types";
-import StepNavigation from "@/components/StepNavigation";
+import type { MikiwameResult, Pipeline, Candidate } from "@/lib/types";
+import { MIKIWAME_TRAIT_LABELS, MIKIWAME_SCORE_LABELS } from "@/lib/types";
 
-interface HighPerformerProfile {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  traits: string[];
-  strengths: string[];
-  values: string[];
-  personality_type: string;
-  performance_score: number;
-  notes: string;
-  created_at: string;
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+
+const TABS = ["組織プロファイル", "部署別分析", "ハイパフォーマー", "候補者フィット"] as const;
+
+const RADAR_TRAITS = [
+  "listening", "assertion", "problem_solving", "proactiveness",
+  "persistence", "self_efficacy", "ambition", "sociability",
+] as const;
+
+const DEPT_GROUPS: Record<string, string[]> = {
+  "SP事業本部": ["SP事業本部"],
+  "オンラインセールス": ["オンラインセールス"],
+  "管理本部": ["管理本部"],
+  "SES事業部": ["SES事業部"],
+  "事業開発": ["事業開発"],
+  "経営企画": ["経営企画"],
+  "社長室": ["社長室"],
+  "マックスプロデュース": ["マックスプロデュース"],
+  "その他": [],
+};
+
+function matchDeptGroup(dept: string): string {
+  for (const [group, keywords] of Object.entries(DEPT_GROUPS)) {
+    if (group === "その他") continue;
+    if (keywords.some((kw) => dept.includes(kw))) return group;
+  }
+  return "その他";
+}
+
+function avgTraits(records: MikiwameResult[], keys: readonly string[]): number[] {
+  return keys.map((k) => {
+    const vals = records.map((r) => r.traits?.[k]).filter((v) => v != null) as number[];
+    return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : 0;
+  });
+}
+
+function avgScore(records: MikiwameResult[], key: string): number {
+  const vals = records
+    .map((r) => {
+      const v = r.match_scores?.[key];
+      return typeof v === "number" ? v : null;
+    })
+    .filter((v) => v != null) as number[];
+  return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : 0;
 }
 
 export default function CultureFitPage() {
-  const [profiles, setProfiles] = useState<HighPerformerProfile[]>([]);
-  const [pipeline, setPipeline] = useState<Pipeline[]>([]);
+  const [tab, setTab] = useState<(typeof TABS)[number]>(TABS[0]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [fitResult, setFitResult] = useState<{ candidateId: string; result: string } | null>(null);
+  const [mikiwame, setMikiwame] = useState<MikiwameResult[]>([]);
+  const [pipeline, setPipeline] = useState<Pipeline[]>([]);
+  const [selectedDept, setSelectedDept] = useState("SP事業本部");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
-  const [aiProfileGenerating, setAiProfileGenerating] = useState(false);
-
-  const [form, setForm] = useState({
-    name: "",
-    role: "",
-    department: "",
-    traits: "",
-    strengths: "",
-    values: "",
-    personality_type: "",
-    performance_score: 5,
-    notes: "",
-    sales_amount: "",
-    achievement_rate: "",
-  });
+  const [fitResult, setFitResult] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [profilesRes, pipelineRes] = await Promise.all([
-      supabase.from("high_performers").select("*").order("performance_score", { ascending: false }),
+    const [mRes, pRes] = await Promise.all([
+      supabase.from("mikiwame_results").select("*"),
       supabase.from("pipeline").select("*, candidate:candidates(*)").neq("stage", "rejected"),
     ]);
-
-    if (profilesRes.error && profilesRes.error.code === "42P01") {
+    if (mRes.error && mRes.error.code === "42P01") {
       setLoading(false);
       return;
     }
-
-    setProfiles((profilesRes.data || []) as HighPerformerProfile[]);
-    setPipeline((pipelineRes.data || []) as Pipeline[]);
+    setMikiwame((mRes.data || []) as MikiwameResult[]);
+    setPipeline((pRes.data || []) as Pipeline[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  async function saveProfile() {
-    if (!form.name.trim()) return;
-    await supabase.from("high_performers").insert([{
-      name: form.name.trim(),
-      role: form.role.trim(),
-      department: form.department.trim(),
-      traits: form.traits.split(",").map((t) => t.trim()).filter(Boolean),
-      strengths: form.strengths.split(",").map((t) => t.trim()).filter(Boolean),
-      values: form.values.split(",").map((t) => t.trim()).filter(Boolean),
-      personality_type: form.personality_type.trim(),
-      performance_score: form.performance_score,
-      notes: form.notes.trim(),
-      sales_amount: form.sales_amount.trim() || null,
-      achievement_rate: form.achievement_rate ? parseFloat(form.achievement_rate) : null,
-    }]);
-    setForm({ name: "", role: "", department: "", traits: "", strengths: "", values: "", personality_type: "", performance_score: 5, notes: "", sales_amount: "", achievement_rate: "" });
-    setShowAdd(false);
-    loadData();
-  }
+  // Personality type distribution
+  const typeDistribution = useMemo(() => {
+    const counts: Record<string, number> = {};
+    mikiwame.forEach((m) => {
+      if (m.personality_type) counts[m.personality_type] = (counts[m.personality_type] || 0) + 1;
+    });
+    return Object.entries(counts).sort(([, a], [, b]) => b - a);
+  }, [mikiwame]);
 
-  async function deleteProfile(id: string) {
-    await supabase.from("high_performers").delete().eq("id", id);
-    loadData();
-  }
+  // Department groupings
+  const deptGrouped = useMemo(() => {
+    const groups: Record<string, MikiwameResult[]> = {};
+    mikiwame.forEach((m) => {
+      const g = matchDeptGroup(m.department);
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(m);
+    });
+    return groups;
+  }, [mikiwame]);
 
-  // AIでハイパフォーマープロフィールを自動生成
-  async function aiGenerateProfile() {
-    if (!form.name.trim() || !form.role.trim()) return;
-    setAiProfileGenerating(true);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: `以下のハイパフォーマーの情報から、性格特性・強み・価値観を分析してください。
+  // HP candidates (high performer scores)
+  const hpRanking = useMemo(() => {
+    return [...mikiwame]
+      .filter((m) => typeof m.match_scores?.hp_all === "number")
+      .sort((a, b) => ((b.match_scores?.hp_all as number) || 0) - ((a.match_scores?.hp_all as number) || 0))
+      .slice(0, 20);
+  }, [mikiwame]);
 
-【氏名】${form.name}
-【役職】${form.role}
-【部署】${form.department}
-${form.notes ? `【備考】${form.notes}` : ""}
+  // Unique pipeline candidates
+  const uniqueCandidates = useMemo(() => {
+    const seen = new Set<string>();
+    return pipeline.filter((p) => {
+      if (!p.candidate || seen.has(p.candidate_id)) return false;
+      seen.add(p.candidate_id);
+      return true;
+    });
+  }, [pipeline]);
 
-以下のJSON形式で出力してください:
-{
-  "traits": ["論理思考", "行動力", "コミュニケーション力", ...],
-  "strengths": ["問題解決", "チームビルディング", ...],
-  "values": ["成長志向", "チームワーク", ...],
-  "personality_type": "ENTJ（指揮官型）"
-}
+  // Org-wide radar data
+  const orgRadarData = useMemo(() => ({
+    labels: RADAR_TRAITS.map((k) => MIKIWAME_TRAIT_LABELS[k] || k),
+    datasets: [{
+      label: "全社平均",
+      data: avgTraits(mikiwame, RADAR_TRAITS),
+      backgroundColor: "rgba(99,102,241,0.15)",
+      borderColor: "#6366f1",
+      borderWidth: 2,
+    }],
+  }), [mikiwame]);
 
-IT・コンサル業界のハイパフォーマーに典型的な特性を参考にしつつ、具体的に5つ以上の特性を出してください。JSONのみ出力。`,
-          systemPrompt: "あなたは組織心理学・タレントマネジメントの専門家です。ハイパフォーマーの行動特性を分析してください。JSONのみ出力してください。",
-        }),
-      });
-      const data = await res.json();
-      const text = data.text || "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        setForm((f) => ({
-          ...f,
-          traits: (parsed.traits || []).join(", "),
-          strengths: (parsed.strengths || []).join(", "),
-          values: (parsed.values || []).join(", "),
-          personality_type: parsed.personality_type || "",
-        }));
-      }
-    } catch (e) {
-      console.error("AI生成エラー:", e);
-    } finally {
-      setAiProfileGenerating(false);
-    }
-  }
+  // Dept comparison radar
+  const deptRadarData = useMemo(() => {
+    const colors = [
+      { bg: "rgba(59,130,246,0.15)", border: "#3b82f6" },
+      { bg: "rgba(16,185,129,0.15)", border: "#10b981" },
+    ];
+    const deptMembers = deptGrouped[selectedDept] || [];
+    return {
+      labels: RADAR_TRAITS.map((k) => MIKIWAME_TRAIT_LABELS[k] || k),
+      datasets: [
+        {
+          label: selectedDept,
+          data: avgTraits(deptMembers, RADAR_TRAITS),
+          ...colors[0],
+          borderWidth: 2,
+        },
+        {
+          label: "全社平均",
+          data: avgTraits(mikiwame, RADAR_TRAITS),
+          ...colors[1],
+          borderWidth: 2,
+        },
+      ],
+    };
+  }, [mikiwame, deptGrouped, selectedDept]);
 
-  // 候補者のカルチャーフィット分析
+  // HP radar: top HP vs org average
+  const hpRadarData = useMemo(() => {
+    const top10 = hpRanking.slice(0, 10);
+    return {
+      labels: RADAR_TRAITS.map((k) => MIKIWAME_TRAIT_LABELS[k] || k),
+      datasets: [
+        {
+          label: "ハイパフォーマーTOP10",
+          data: avgTraits(top10, RADAR_TRAITS),
+          backgroundColor: "rgba(245,158,11,0.15)",
+          borderColor: "#f59e0b",
+          borderWidth: 2,
+        },
+        {
+          label: "全社平均",
+          data: avgTraits(mikiwame, RADAR_TRAITS),
+          backgroundColor: "rgba(156,163,175,0.1)",
+          borderColor: "#9ca3af",
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [mikiwame, hpRanking]);
+
+  // Type distribution bar chart
+  const typeBarData = useMemo(() => ({
+    labels: typeDistribution.slice(0, 10).map(([t]) => t.replace(/（.*）/, "")),
+    datasets: [{
+      label: "人数",
+      data: typeDistribution.slice(0, 10).map(([, c]) => c),
+      backgroundColor: [
+        "#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
+        "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16", "#f97316",
+      ],
+    }],
+  }), [typeDistribution]);
+
   async function analyzeFit(candidateId: string) {
     const p = pipeline.find((x) => x.candidate_id === candidateId);
     const c = p?.candidate as Candidate | undefined;
     if (!c) return;
+    setAiLoading(true);
+    setFitResult("");
 
-    setAiAnalyzing(true);
-    setFitResult(null);
-    setSelectedCandidateId(candidateId);
+    const orgProfile = RADAR_TRAITS.map((k) => {
+      const avg = avgTraits(mikiwame, [k])[0];
+      return `${MIKIWAME_TRAIT_LABELS[k]}: 全社平均${avg}`;
+    }).join(", ");
 
-    const profilesSummary = profiles.map((hp) =>
-      `【${hp.name}（${hp.role}）】パフォーマンス: ${hp.performance_score}/10\n特性: ${hp.traits?.join(", ")}\n強み: ${hp.strengths?.join(", ")}\n価値観: ${hp.values?.join(", ")}\n性格タイプ: ${hp.personality_type}`
-    ).join("\n\n");
+    const hpProfile = hpRanking.slice(0, 5).map((h) =>
+      `${h.name}(${h.department}): ${h.personality_type}, HPスコア${h.match_scores?.hp_all}`
+    ).join("\n");
+
+    const topTypes = typeDistribution.slice(0, 5).map(([t, c]) => `${t}:${c}名`).join(", ");
 
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `以下の自社ハイパフォーマーの特性と、候補者のプロフィールを比較して、カルチャーフィット分析を行ってください。
+          prompt: `MIKIWAMEの適性検査データに基づく組織プロファイルと候補者を比較し、カルチャーフィット分析を行ってください。
 
-【自社ハイパフォーマー一覧】
-${profilesSummary}
+【組織プロファイル（MIKIWAME実データ: ${mikiwame.length}名）】
+性格特性平均: ${orgProfile}
+多い人物タイプ: ${topTypes}
+
+【ハイパフォーマーTOP5】
+${hpProfile}
 
 【分析対象の候補者】
 氏名: ${c.name}
-現職: ${c.current_company} ${c.current_position}
-経験年数: ${c.experience_years}年
-スキル: ${c.skills?.join(", ")}
-職務経歴: ${c.resume_text?.slice(0, 800)}
+現職: ${c.current_company || ""} ${c.current_position || ""}
+経験年数: ${c.experience_years || 0}年
+スキル: ${c.skills?.join(", ") || "不明"}
+応募経路: ${c.source || "不明"}
 AIスコア: ${p?.score || "未評価"}
 
-以下の形式で分析してください:
-■ カルチャーフィット度: XX% （0-100%で数値化）
+■ カルチャーフィット度: XX%
 ■ フィットする点（3-5点）
-■ ギャップ・懸念点（2-3点）
-■ 推定される性格タイプ
-■ ハイパフォーマーとの類似度ランキング（最も似ている人TOP3）
+■ 懸念点（2-3点）
+■ 推定される人物タイプ（MIKIWAME 16タイプから）
+■ 最もマッチする部署
+■ ハイパフォーマーとの類似度
 ■ 総合評価・推奨アクション`,
-          systemPrompt: "あなたは組織心理学・カルチャーフィット分析の専門家です。自社のハイパフォーマー特性をベンチマークとして、候補者の適合度を科学的に分析してください。",
+          systemPrompt: "あなたはMIKIWAME適性検査のデータアナリストです。組織の実際の適性検査データに基づいて、候補者のカルチャーフィットを科学的に分析してください。",
         }),
       });
       const data = await res.json();
-      setFitResult({
-        candidateId,
-        result: data.text || "分析に失敗しました",
-      });
-    } finally {
-      setAiAnalyzing(false);
+      setFitResult(data.text || "分析に失敗しました");
+    } catch {
+      setFitResult("エラーが発生しました");
     }
+    setAiLoading(false);
   }
 
-  const inputClass = "w-full px-3 py-2.5 rounded-lg border border-gray-200 text-[13px] outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100";
+  if (loading) return <div className="flex items-center justify-center h-full text-gray-400">読み込み中...</div>;
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-full text-gray-400">読み込み中...</div>;
-  }
-
-  // ハイパフォーマーから共通特性を抽出
-  const allTraits: Record<string, number> = {};
-  profiles.forEach((p) => {
-    p.traits?.forEach((t) => { allTraits[t] = (allTraits[t] || 0) + 1; });
-  });
-  const topTraits = Object.entries(allTraits)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 8);
-
-  const activeCandidates = pipeline.filter((p) => p.candidate);
-  // 重複排除
-  const uniqueCandidates: Pipeline[] = [];
-  const seenIds = new Set<string>();
-  activeCandidates.forEach((p) => {
-    if (!seenIds.has(p.candidate_id)) {
-      seenIds.add(p.candidate_id);
-      uniqueCandidates.push(p);
-    }
-  });
+  const radarOpts = {
+    responsive: true,
+    scales: { r: { beginAtZero: true, max: 70, ticks: { stepSize: 10, font: { size: 10 } }, pointLabels: { font: { size: 11 } } } },
+    plugins: { legend: { position: "bottom" as const, labels: { font: { size: 11 } } } },
+  };
 
   return (
     <div className="px-4 md:px-7 py-4 md:py-6">
       <div className="max-w-[1100px] mx-auto">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-800">🧬 カルチャーフィット</h1>
-            <p className="text-[13px] text-gray-400 mt-0.5">
-              自社ハイパフォーマーの特性から、フィットする人材をAIが見抜く
-            </p>
-          </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="text-[12px] font-bold text-white bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            ➕ ハイパフォーマーを登録
-          </button>
+        <div className="mb-5">
+          <h1 className="text-2xl font-extrabold text-gray-800">カルチャーフィット</h1>
+          <p className="text-[13px] text-gray-400 mt-0.5">
+            MIKIWAME適性検査データ（{mikiwame.length}名）に基づく組織分析
+          </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-extrabold text-gray-800">{profiles.length}</div>
-            <div className="text-[11px] text-gray-400 font-bold mt-1">登録済みHP</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-extrabold text-blue-600">
-              {profiles.length > 0 ? Math.round(profiles.reduce((s, p) => s + p.performance_score, 0) / profiles.length * 10) / 10 : 0}
+        {mikiwame.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 text-center py-16 text-gray-400">
+            <div className="text-5xl mb-3">🧬</div>
+            <div className="text-[14px]">MIKIWAMEデータが未登録です</div>
+            <div className="text-[12px] mt-1">
+              /api/setup-mikiwame でテーブルを作成し、/api/seed-mikiwame でデータを投入してください
             </div>
-            <div className="text-[11px] text-gray-400 font-bold mt-1">平均パフォーマンス</div>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-extrabold text-violet-600">{topTraits.length > 0 ? topTraits[0][0] : "—"}</div>
-            <div className="text-[11px] text-gray-400 font-bold mt-1">最多特性</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-3xl font-extrabold text-emerald-600">{uniqueCandidates.length}</div>
-            <div className="text-[11px] text-gray-400 font-bold mt-1">分析可能候補者</div>
-          </div>
-        </div>
-
-        {/* 登録フォーム */}
-        {showAdd && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-[15px] font-bold text-gray-700 mb-4">ハイパフォーマー登録</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">氏名 *</label>
-                <input className={inputClass} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="田中太郎" />
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+                <div className="text-2xl font-extrabold text-indigo-600">{mikiwame.length}</div>
+                <div className="text-[10px] text-gray-400 font-bold mt-1">検査実施者</div>
               </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">役職 *</label>
-                <input className={inputClass} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="シニアエンジニア" />
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+                <div className="text-2xl font-extrabold text-blue-600">{Object.keys(deptGrouped).length}</div>
+                <div className="text-[10px] text-gray-400 font-bold mt-1">部署グループ</div>
               </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">部署</label>
-                <input className={inputClass} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} placeholder="開発部" />
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+                <div className="text-2xl font-extrabold text-amber-600">{typeDistribution.length}</div>
+                <div className="text-[10px] text-gray-400 font-bold mt-1">人物タイプ数</div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+                <div className="text-2xl font-extrabold text-emerald-600">{avgScore(mikiwame, "hp_all")}</div>
+                <div className="text-[10px] text-gray-400 font-bold mt-1">HP傾向(平均)</div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+                <div className="text-2xl font-extrabold text-violet-600">{avgScore(mikiwame, "culture")}</div>
+                <div className="text-[10px] text-gray-400 font-bold mt-1">組織風土(平均)</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">パフォーマンス評価（1-10）</label>
-                <input className={inputClass} type="number" min={1} max={10} value={form.performance_score} onChange={(e) => setForm((f) => ({ ...f, performance_score: parseInt(e.target.value) || 5 }))} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">性格タイプ（MBTI等）</label>
-                <input className={inputClass} value={form.personality_type} onChange={(e) => setForm((f) => ({ ...f, personality_type: e.target.value }))} placeholder="ENTJ" />
-              </div>
-            </div>
-
-            {/* AI自動生成ボタン */}
-            <div className="bg-blue-50 rounded-xl p-4 mb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[12px] font-bold text-blue-700">🤖 AIで特性を自動分析</span>
-                  <p className="text-[10px] text-blue-500 mt-0.5">氏名・役職を入力後にクリックすると、AIが特性・強み・価値観を推定します</p>
-                </div>
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {TABS.map((t) => (
                 <button
-                  onClick={aiGenerateProfile}
-                  disabled={aiProfileGenerating || !form.name.trim() || !form.role.trim()}
-                  className="text-[11px] font-bold text-white bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    tab === t ? "bg-indigo-600 text-white shadow" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}
                 >
-                  {aiProfileGenerating ? "⏳ 分析中..." : "🤖 AI分析"}
+                  {t}
                 </button>
-              </div>
+              ))}
             </div>
 
-            <div className="space-y-3 mb-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">行動特性（カンマ区切り）</label>
-                <input className={inputClass} value={form.traits} onChange={(e) => setForm((f) => ({ ...f, traits: e.target.value }))} placeholder="論理思考, 行動力, リーダーシップ" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">強み（カンマ区切り）</label>
-                <input className={inputClass} value={form.strengths} onChange={(e) => setForm((f) => ({ ...f, strengths: e.target.value }))} placeholder="問題解決, チームビルディング, 技術力" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">価値観（カンマ区切り）</label>
-                <input className={inputClass} value={form.values} onChange={(e) => setForm((f) => ({ ...f, values: e.target.value }))} placeholder="成長志向, チームワーク, 顧客第一" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-gray-500 block mb-1">売上金額（任意）</label>
-                  <input className={inputClass} value={form.sales_amount} onChange={(e) => setForm((f) => ({ ...f, sales_amount: e.target.value }))} placeholder="例: 5,000万円 / 年間1.2億" />
+            {/* 組織プロファイル */}
+            {tab === "組織プロファイル" && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-4">組織全体の性格特性</h3>
+                  <Radar data={orgRadarData} options={radarOpts} />
                 </div>
-                <div>
-                  <label className="text-[11px] font-bold text-gray-500 block mb-1">目標達成率 %（任意）</label>
-                  <input className={inputClass} type="number" min={0} max={999} value={form.achievement_rate} onChange={(e) => setForm((f) => ({ ...f, achievement_rate: e.target.value }))} placeholder="例: 150" />
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-4">人物16タイプ分布</h3>
+                  <Bar
+                    data={typeBarData}
+                    options={{
+                      responsive: true,
+                      indexAxis: "y" as const,
+                      plugins: { legend: { display: false } },
+                      scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } } } },
+                    }}
+                  />
                 </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 block mb-1">メモ</label>
-                <textarea className={`${inputClass} resize-none min-h-[60px]`} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="この人が優秀な理由、エピソードなど" />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowAdd(false)} className="text-[12px] font-semibold text-gray-500 px-4 py-2">キャンセル</button>
-              <button onClick={saveProfile} disabled={!form.name.trim()} className="text-[12px] font-bold text-white bg-emerald-600 px-5 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50">保存</button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* ハイパフォーマー一覧 */}
-          <div className="md:col-span-2 space-y-4">
-            <h2 className="text-[15px] font-bold text-gray-700">🌟 ハイパフォーマー一覧</h2>
-
-            {profiles.length === 0 && !showAdd && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 text-center py-16 text-gray-400">
-                <div className="text-5xl mb-3">🧬</div>
-                <div className="text-[14px]">ハイパフォーマーが未登録です</div>
-                <div className="text-[12px] mt-1">自社の優秀社員を登録して、候補者とのフィット分析を行いましょう</div>
+                <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-4">部署別マッチスコア</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(["sp_match", "onecolors_match", "corp_match", "links2_match", "newgrad_match", "hp_all", "hp_bu", "hp_corp"] as const).map((key) => (
+                      <div key={key} className="bg-gray-50 rounded-lg p-3 text-center">
+                        <div className="text-[10px] text-gray-400 font-bold mb-1">
+                          {MIKIWAME_SCORE_LABELS[key]}
+                        </div>
+                        <div className={`text-xl font-extrabold ${
+                          avgScore(mikiwame, key) >= 7 ? "text-emerald-600" :
+                          avgScore(mikiwame, key) >= 5 ? "text-blue-600" : "text-gray-600"
+                        }`}>
+                          {avgScore(mikiwame, key)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            {profiles.map((hp) => (
-              <div key={hp.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-[15px]">
-                      {hp.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-[14px] font-bold text-gray-800">{hp.name}</div>
-                      <div className="text-[11px] text-gray-400">{hp.department} / {hp.role}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-center">
-                      <div className={`text-[16px] font-extrabold ${hp.performance_score >= 8 ? "text-emerald-600" : hp.performance_score >= 6 ? "text-amber-600" : "text-gray-600"}`}>
-                        {hp.performance_score}
-                      </div>
-                      <div className="text-[9px] text-gray-400 font-bold">/10</div>
-                    </div>
-                    <button onClick={() => deleteProfile(hp.id)} className="text-[10px] text-red-400 hover:text-red-600 ml-2">削除</button>
-                  </div>
-                </div>
-
-                {hp.personality_type && (
-                  <div className="mb-2">
-                    <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
-                      {hp.personality_type}
-                    </span>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {hp.traits && hp.traits.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400">特性: </span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {hp.traits.map((t) => (
-                          <span key={t} className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{t}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {hp.strengths && hp.strengths.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400">強み: </span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {hp.strengths.map((s) => (
-                          <span key={s} className="text-[10px] font-semibold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {hp.values && hp.values.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400">価値観: </span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {hp.values.map((v) => (
-                          <span key={v} className="text-[10px] font-semibold bg-amber-50 text-amber-600 px-2 py-0.5 rounded">{v}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* 共通特性サマリー */}
-            {topTraits.length > 0 && (
-              <div className="bg-gradient-to-br from-violet-50 to-blue-50 rounded-xl p-5 border border-violet-100">
-                <h3 className="text-[13px] font-bold text-violet-800 mb-3">📊 ハイパフォーマー共通特性</h3>
-                <div className="space-y-2">
-                  {topTraits.map(([trait, count]) => (
-                    <div key={trait} className="flex items-center gap-3">
-                      <span className="text-[12px] font-semibold text-gray-700 w-[120px]">{trait}</span>
-                      <div className="flex-1 h-3 bg-white/60 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-violet-400 rounded-full"
-                          style={{ width: `${(count / profiles.length) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-bold text-violet-600">{Math.round((count / profiles.length) * 100)}%</span>
-                    </div>
+            {/* 部署別分析 */}
+            {tab === "部署別分析" && (
+              <div className="space-y-6">
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(deptGrouped)
+                    .sort(([, a], [, b]) => b.length - a.length)
+                    .map(([dept, members]) => (
+                    <button
+                      key={dept}
+                      onClick={() => setSelectedDept(dept)}
+                      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition ${
+                        selectedDept === dept
+                          ? "bg-blue-600 text-white shadow"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                    >
+                      {dept}（{members.length}名）
+                    </button>
                   ))}
                 </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="text-[14px] font-bold text-gray-700 mb-4">
+                      {selectedDept} vs 全社平均
+                    </h3>
+                    <Radar data={deptRadarData} options={radarOpts} />
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="text-[14px] font-bold text-gray-700 mb-4">
+                      {selectedDept}の人物タイプ
+                    </h3>
+                    <div className="space-y-2">
+                      {(() => {
+                        const members = deptGrouped[selectedDept] || [];
+                        const counts: Record<string, number> = {};
+                        members.forEach((m) => {
+                          if (m.personality_type) counts[m.personality_type] = (counts[m.personality_type] || 0) + 1;
+                        });
+                        return Object.entries(counts)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 8)
+                          .map(([type, count]) => (
+                            <div key={type} className="flex items-center gap-3">
+                              <span className="text-[11px] font-semibold text-gray-700 w-[160px] truncate">{type}</span>
+                              <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-blue-400 rounded-full"
+                                  style={{ width: `${(count / members.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-bold text-blue-600 w-8 text-right">{count}</span>
+                            </div>
+                          ));
+                      })()}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-[12px] font-bold text-gray-500 mb-2">メンバー一覧</h4>
+                      <div className="max-h-[200px] overflow-y-auto space-y-1">
+                        {(deptGrouped[selectedDept] || []).map((m) => (
+                          <div key={m.id} className="flex items-center justify-between text-[11px] py-1">
+                            <span className="text-gray-700">{m.name}</span>
+                            <span className="text-[10px] text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
+                              {m.personality_type?.replace(/（.*）/, "")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* 候補者フィット分析 */}
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sticky top-6">
-              <h3 className="text-[14px] font-bold text-gray-700 mb-3">🧬 フィット分析</h3>
-
-              {profiles.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <div className="text-3xl mb-2">🧬</div>
-                  <div className="text-[11px]">先にハイパフォーマーを<br />登録してください</div>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-3">
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">候補者を選択</label>
-                    <select
-                      value={selectedCandidateId}
-                      onChange={(e) => setSelectedCandidateId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[12px] outline-none bg-white"
-                    >
-                      <option value="">選択してください</option>
-                      {uniqueCandidates.map((p) => {
-                        const c = p.candidate as Candidate | undefined;
-                        return (
-                          <option key={p.candidate_id} value={p.candidate_id}>
-                            {c?.name} ({c?.current_company})
-                          </option>
-                        );
-                      })}
-                    </select>
+            {/* ハイパフォーマー分析 */}
+            {tab === "ハイパフォーマー" && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-4">
+                    ハイパフォーマーTOP10 vs 全社平均
+                  </h3>
+                  <Radar data={hpRadarData} options={radarOpts} />
+                  <div className="mt-4 bg-amber-50 rounded-lg p-3">
+                    <div className="text-[11px] font-bold text-amber-700 mb-1">HPの特徴</div>
+                    <div className="text-[10px] text-amber-600 leading-relaxed">
+                      {(() => {
+                        const top10 = hpRanking.slice(0, 10);
+                        const orgAvg = avgTraits(mikiwame, RADAR_TRAITS);
+                        const hpAvg = avgTraits(top10, RADAR_TRAITS);
+                        const diffs = RADAR_TRAITS.map((k, i) => ({
+                          trait: MIKIWAME_TRAIT_LABELS[k],
+                          diff: hpAvg[i] - orgAvg[i],
+                        })).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+                        return diffs.slice(0, 4).map((d) =>
+                          `${d.trait}: ${d.diff > 0 ? "+" : ""}${d.diff.toFixed(1)}pt`
+                        ).join(" / ");
+                      })()}
+                    </div>
                   </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-4">
+                    HPスコアランキングTOP20
+                  </h3>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {hpRanking.map((m, i) => (
+                      <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50">
+                        <span className={`text-[12px] font-extrabold w-6 text-center ${
+                          i < 3 ? "text-amber-500" : "text-gray-400"
+                        }`}>
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-bold text-gray-800 truncate">{m.name}</div>
+                          <div className="text-[10px] text-gray-400 truncate">
+                            {m.department} {m.role ? `/ ${m.role}` : ""}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {m.personality_type?.replace(/（.*）/, "")}
+                        </span>
+                        <div className="text-right">
+                          <div className="text-[14px] font-extrabold text-amber-600">
+                            {typeof m.match_scores?.hp_all === "number"
+                              ? (m.match_scores.hp_all as number).toFixed(1)
+                              : "-"}
+                          </div>
+                          <div className="text-[9px] text-gray-400">HP全社</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="md:col-span-2 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6">
+                  <h3 className="text-[14px] font-bold text-amber-800 mb-3">
+                    ハイパフォーマーペルソナ
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {(() => {
+                      const top10 = hpRanking.slice(0, 10);
+                      const typeCounts: Record<string, number> = {};
+                      top10.forEach((m) => {
+                        if (m.personality_type) typeCounts[m.personality_type] = (typeCounts[m.personality_type] || 0) + 1;
+                      });
+                      const topType = Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0];
+                      const avgCulture = avgScore(top10, "culture");
+                      const avgStability = avgScore(top10, "stability");
+                      const avgHpBu = avgScore(top10, "hp_bu");
+                      return [
+                        { label: "最多タイプ", value: topType ? topType[0].replace(/（.*）/, "") : "-", sub: topType ? `${topType[1]}/${top10.length}名` : "" },
+                        { label: "組織風土適合", value: avgCulture.toString(), sub: "平均スコア" },
+                        { label: "安定度", value: avgStability.toString(), sub: "平均スコア" },
+                        { label: "事業部HP度", value: avgHpBu.toString(), sub: "平均スコア" },
+                      ].map((item) => (
+                        <div key={item.label} className="bg-white/70 rounded-lg p-3 text-center">
+                          <div className="text-[10px] text-amber-600 font-bold mb-1">{item.label}</div>
+                          <div className="text-[16px] font-extrabold text-gray-800">{item.value}</div>
+                          <div className="text-[9px] text-gray-400">{item.sub}</div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 候補者フィット */}
+            {tab === "候補者フィット" && (
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-3">候補者を選択</h3>
+                  <select
+                    value={selectedCandidateId}
+                    onChange={(e) => setSelectedCandidateId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-[12px] outline-none bg-white mb-3"
+                  >
+                    <option value="">選択してください</option>
+                    {uniqueCandidates.map((p) => {
+                      const c = p.candidate as Candidate | undefined;
+                      return (
+                        <option key={p.candidate_id} value={p.candidate_id}>
+                          {c?.name} ({c?.source})
+                        </option>
+                      );
+                    })}
+                  </select>
                   <button
                     onClick={() => selectedCandidateId && analyzeFit(selectedCandidateId)}
-                    disabled={aiAnalyzing || !selectedCandidateId}
-                    className="w-full text-[12px] font-bold text-white bg-violet-600 px-4 py-2.5 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 mb-4"
+                    disabled={aiLoading || !selectedCandidateId}
+                    className="w-full text-[12px] font-bold text-white bg-indigo-600 px-4 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    {aiAnalyzing ? "⏳ 分析中..." : "🧬 フィット分析を実行"}
+                    {aiLoading ? "分析中..." : "フィット分析を実行"}
                   </button>
-
-                  {!fitResult && !aiAnalyzing && (
-                    <div className="text-center py-6 text-gray-400">
-                      <div className="text-3xl mb-2">🎯</div>
-                      <div className="text-[11px]">候補者を選択して<br />フィット分析を実行</div>
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="text-[10px] text-gray-400 font-bold mb-2">分析に使用するデータ</div>
+                    <div className="space-y-1 text-[10px] text-gray-500">
+                      <div>MIKIWAME受検者: {mikiwame.length}名</div>
+                      <div>人物タイプ: {typeDistribution.length}種類</div>
+                      <div>HPランキング: TOP{Math.min(hpRanking.length, 5)}</div>
+                      <div>性格特性: {RADAR_TRAITS.length}指標</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                  <h3 className="text-[14px] font-bold text-gray-700 mb-3">AI フィット分析結果</h3>
+                  {!fitResult && !aiLoading && (
+                    <div className="text-center py-12 text-gray-400">
+                      <div className="text-4xl mb-3">🧬</div>
+                      <div className="text-[12px]">候補者を選択してフィット分析を実行</div>
+                      <div className="text-[10px] mt-1">MIKIWAME実データに基づくAI分析</div>
                     </div>
                   )}
-
-                  {aiAnalyzing && (
-                    <div className="text-center py-6 text-gray-400">
-                      <div className="text-3xl mb-2 animate-pulse">🧬</div>
-                      <div className="text-[11px]">AIがフィット分析中...</div>
+                  {aiLoading && (
+                    <div className="text-center py-12 text-gray-400">
+                      <div className="text-4xl mb-2 animate-pulse">🧬</div>
+                      <div className="text-[12px]">AIがMIKIWAMEデータと照合中...</div>
                     </div>
                   )}
-
                   {fitResult && (
-                    <div className="text-[11px] text-gray-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto">
-                      {fitResult.result}
+                    <div className="text-[12px] text-gray-600 whitespace-pre-wrap leading-relaxed max-h-[600px] overflow-y-auto">
+                      {fitResult}
                     </div>
                   )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
-      <StepNavigation />
     </div>
   );
 }

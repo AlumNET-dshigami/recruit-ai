@@ -16,6 +16,7 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import StepNavigation, { WorkflowGuide } from "@/components/StepNavigation";
+import AiDailySuggestions from "@/components/AiDailySuggestions";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -255,6 +256,9 @@ export default function Dashboard() {
         <h1 className="text-2xl font-extrabold text-gray-800 mb-4">
           🏠 ダッシュボード
         </h1>
+
+        {/* AI日次サジェスション */}
+        <AiDailySuggestions />
 
         {/* ワークフローガイド */}
         <WorkflowGuide />

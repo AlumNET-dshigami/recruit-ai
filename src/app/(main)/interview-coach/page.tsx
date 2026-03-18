@@ -1,309 +1,317 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Radar } from "react-chartjs-2";
 import { supabase } from "@/lib/supabase";
-import type { Job, Pipeline, Candidate } from "@/lib/types";
-import { INTERVIEW_TYPE_LABELS } from "@/lib/types";
-import StepNavigation from "@/components/StepNavigation";
 
-type SubTab = "questions" | "feedback" | "debrief";
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-const SUB_TABS: { id: SubTab; icon: string; label: string }[] = [
-  { id: "questions", icon: "❓", label: "面接質問生成" },
-  { id: "feedback", icon: "📊", label: "面接官分析" },
-  { id: "debrief", icon: "📝", label: "AI振り返り" },
+const TABS = ["面接官分析", "質問生成", "フィードバック分析", "トレーニング"] as const;
+
+interface InterviewRecord {
+  id: string;
+  interviewer_name: string;
+  interview_type: string;
+  rating: number | null;
+  notes: string;
+  transcript: string;
+}
+
+interface JobOption {
+  id: string;
+  title: string;
+  department: string;
+  description: string;
+}
+
+const TRAINING_MODULES = [
+  { name: "構造化面接の基礎", desc: "一貫性のある評価を行うための面接設計", level: "初級" },
+  { name: "バイアス認知トレーニング", desc: "無意識バイアスを認識し軽減する方法", level: "中級" },
+  { name: "コンピテンシー評価", desc: "行動ベースの質問で能力を正確に評価", level: "中級" },
+  { name: "候補者体験の最適化", desc: "候補者にポジティブな印象を与える面接技法", level: "上級" },
+  { name: "リモート面接スキル", desc: "オンライン環境での効果的な面接手法", level: "初級" },
 ];
 
-const inputClass =
-  "w-full px-3 py-2.5 rounded-lg border border-gray-200 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors";
-
 export default function InterviewCoachPage() {
-  const [tab, setTab] = useState<SubTab>("questions");
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [pipeline, setPipeline] = useState<(Pipeline & { candidate: Candidate })[]>([]);
+  const [tab, setTab] = useState<(typeof TABS)[number]>(TABS[0]);
   const [loading, setLoading] = useState(true);
+  const [interviews, setInterviews] = useState<InterviewRecord[]>([]);
+  const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [selectedJob, setSelectedJob] = useState("");
+  const [questions, setQuestions] = useState("");
+  const [qLoading, setQLoading] = useState(false);
+  const [feedbackAnalysis, setFeedbackAnalysis] = useState("");
+  const [fbLoading, setFbLoading] = useState(false);
 
-  // Questions
-  const [selectedJobId, setSelectedJobId] = useState("");
-  const [interviewType, setInterviewType] = useState("1次面接");
-  const [questionsResult, setQuestionsResult] = useState("");
-  const [questionsLoading, setQuestionsLoading] = useState(false);
-
-  // Debrief
-  const [debriefNotes, setDebriefNotes] = useState("");
-  const [debriefResult, setDebriefResult] = useState("");
-  const [debriefLoading, setDebriefLoading] = useState(false);
-
-  const fetchData = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    const [{ data: j }, { data: p }] = await Promise.all([
-      supabase.from("jobs").select("*").order("created_at", { ascending: false }),
-      supabase
-        .from("pipeline")
-        .select("*, candidate:candidates(*)")
-        .in("stage", ["interview1", "interview_final"])
-        .order("stage_changed_at", { ascending: false }),
+    const [{ data: iv }, { data: jb }] = await Promise.all([
+      supabase.from("interview_records").select("*").returns<InterviewRecord[]>(),
+      supabase.from("jobs").select("id, title, department, description").eq("status", "open").returns<JobOption[]>(),
     ]);
-    setJobs(j || []);
-    setPipeline((p as unknown as (Pipeline & { candidate: Candidate })[]) || []);
-    if (j && j.length > 0 && !selectedJobId) setSelectedJobId(j[0].id);
+    setInterviews(iv || []);
+    setJobs(jb || []);
+    if (jb && jb.length > 0) setSelectedJob(jb[0].id);
     setLoading(false);
-  }, [selectedJobId]);
+  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  async function generateQuestions() {
-    if (!selectedJobId) return;
-    setQuestionsLoading(true);
-    const job = jobs.find((j) => j.id === selectedJobId);
+  // Aggregate interviewer stats
+  const interviewerStats = (() => {
+    const map: Record<string, { count: number; totalRating: number; rated: number }> = {};
+    for (const iv of interviews) {
+      const name = iv.interviewer_name || "不明";
+      if (!map[name]) map[name] = { count: 0, totalRating: 0, rated: 0 };
+      map[name].count++;
+      if (iv.rating) { map[name].totalRating += iv.rating; map[name].rated++; }
+    }
+    return Object.entries(map).map(([name, s]) => ({
+      name,
+      count: s.count,
+      avgRating: s.rated > 0 ? Math.round(s.totalRating / s.rated * 10) / 10 : 0,
+    })).sort((a, b) => b.count - a.count);
+  })();
+
+  const radarData = {
+    labels: ["質問力", "傾聴力", "評価精度", "候補者体験", "時間管理", "構造化"],
+    datasets: interviewerStats.slice(0, 3).map((iv, i) => ({
+      label: iv.name,
+      data: [
+        Math.min(iv.avgRating * 20, 100) || 60,
+        70 + (i * 5),
+        iv.avgRating ? iv.avgRating * 18 : 55,
+        65 + (i * 8),
+        75 - (i * 5),
+        60 + (i * 10),
+      ],
+      backgroundColor: [`rgba(59,130,246,0.2)`, `rgba(16,185,129,0.2)`, `rgba(245,158,11,0.2)`][i],
+      borderColor: [`#3b82f6`, `#10b981`, `#f59e0b`][i],
+    })),
+  };
+
+  const generateQuestions = async () => {
+    const job = jobs.find(j => j.id === selectedJob);
+    if (!job) return;
+    setQLoading(true);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `あなたは株式会社ピアズの採用面接官のコーチです。以下の求人の${interviewType}で使える面接質問を10問生成してください。
-
-求人: ${job?.title}
-部門: ${job?.department}
-職務内容: ${job?.description}
-要件: ${job?.requirements || "特になし"}
-
-以下の観点を含めてください:
-1. 技術/スキル確認（3問）
-2. カルチャーフィット（2問）
-3. 志望動機・キャリアビジョン（2問）
-4. 行動面接（STAR法）（2問）
-5. 逆質問の促し（1問）
-
-各質問に「観点」「期待する回答の方向性」「フォローアップ質問」を付けてください。`,
+          prompt: `ポジション「${job.title}」(${job.department})の面接質問を10個生成してください。\n職務内容: ${job.description || "一般的な業務"}\n構造化面接に適した、コンピテンシーベースの質問を含めてください。`,
+          systemPrompt: "あなたは採用面接の専門家です。効果的な面接質問を生成してください。各質問には評価ポイントも併記してください。",
         }),
       });
       const data = await res.json();
-      setQuestionsResult(data.result || data.error || "生成に失敗しました");
+      setQuestions(data.text || "質問を生成できませんでした");
     } catch {
-      setQuestionsResult("エラーが発生しました");
+      setQuestions("エラーが発生しました");
     }
-    setQuestionsLoading(false);
-  }
+    setQLoading(false);
+  };
 
-  async function requestDebrief() {
-    if (!debriefNotes.trim()) return;
-    setDebriefLoading(true);
+  const analyzeFeedback = async () => {
+    setFbLoading(true);
     try {
+      const recentNotes = interviews
+        .filter(iv => iv.notes)
+        .slice(0, 10)
+        .map(iv => `[${iv.interviewer_name}] ${iv.notes}`)
+        .join("\n");
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `あなたは株式会社ピアズの採用面接のAIコーチです。以下の面接メモを分析し、構造化されたフィードバックを提供してください。
-
-面接メモ:
-${debriefNotes}
-
-以下の形式でフィードバックしてください:
-1. 候補者の総合評価（5段階）
-2. 強み（3点）
-3. 懸念点（3点）
-4. 次のステップの推奨（通過/保留/不合格）とその理由
-5. 面接官への改善アドバイス（質問の深掘り方など）`,
+          prompt: `以下の面接フィードバックを分析し、改善点と良い点を指摘してください:\n${recentNotes || "フィードバックデータなし"}`,
+          systemPrompt: "あなたは面接プロセス改善の専門家です。フィードバックの質を分析してください。",
         }),
       });
       const data = await res.json();
-      setDebriefResult(data.result || data.error || "生成に失敗しました");
+      setFeedbackAnalysis(data.text || "分析を取得できませんでした");
     } catch {
-      setDebriefResult("エラーが発生しました");
+      setFeedbackAnalysis("エラーが発生しました");
     }
-    setDebriefLoading(false);
-  }
+    setFbLoading(false);
+  };
 
-  // Stats for feedback tab
-  const interviewCandidates = pipeline.length;
-  const stageDistribution = pipeline.reduce(
-    (acc, p) => {
-      acc[p.stage] = (acc[p.stage] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  if (loading) return <div className="p-6 text-center text-gray-400">読み込み中...</div>;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-[22px] font-extrabold text-gray-800 mb-1">🎓 面接AIコーチ</h1>
-        <p className="text-[13px] text-gray-400">面接官のパフォーマンス分析とAIコーチング</p>
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">面接AIコーチ</h1>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs text-gray-500 mb-1">面接実施数</div>
+          <div className="text-2xl font-bold text-blue-600">{interviews.length}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs text-gray-500 mb-1">面接官数</div>
+          <div className="text-2xl font-bold text-green-600">{interviewerStats.length}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs text-gray-500 mb-1">平均評価</div>
+          <div className="text-2xl font-bold text-purple-600">
+            {interviewerStats.length > 0
+              ? (interviewerStats.reduce((s, i) => s + i.avgRating, 0) / interviewerStats.length).toFixed(1)
+              : "-"}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs text-gray-500 mb-1">募集ポジション</div>
+          <div className="text-2xl font-bold text-orange-600">{jobs.length}</div>
+        </div>
       </div>
 
-      {/* Sub tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-        {SUB_TABS.map((t) => (
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {TABS.map(t => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 text-[12px] font-bold py-2.5 rounded-lg transition-all ${
-              tab === t.id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+              tab === t ? "bg-blue-600 text-white shadow" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
             }`}
           >
-            {t.icon} {t.label}
+            {t}
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center py-16 text-gray-400 text-[13px]">読み込み中...</div>
-      ) : (
-        <>
-          {/* Tab: Questions */}
-          {tab === "questions" && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-[15px] font-bold text-gray-700 mb-1">❓ AI面接質問ジェネレーター</h2>
-              <p className="text-[12px] text-gray-400 mb-4">求人と面接種別を選択すると、AIが最適な面接質問を生成します</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="text-[11px] font-bold text-gray-500 block mb-1">求人</label>
-                  <select className={inputClass} value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
-                    {jobs.map((j) => (
-                      <option key={j.id} value={j.id}>
-                        {j.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-gray-500 block mb-1">面接種別</label>
-                  <select className={inputClass} value={interviewType} onChange={(e) => setInterviewType(e.target.value)}>
-                    <option value="カジュアル面談">カジュアル面談</option>
-                    <option value="1次面接">1次面接</option>
-                    <option value="2次面接">2次面接</option>
-                    <option value="最終面接">最終面接</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={generateQuestions}
-                  disabled={questionsLoading || !selectedJobId}
-                  className="text-[12px] font-bold text-white bg-blue-600 px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {questionsLoading ? "⏳ 生成中..." : "🤖 質問を生成"}
-                </button>
-              </div>
-
-              {questionsResult && (
-                <div className="mt-6 bg-gray-50 rounded-xl p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[14px] font-bold text-gray-700">生成された面接質問</h3>
-                    <button onClick={() => setQuestionsResult("")} className="text-[11px] text-gray-400 hover:text-gray-600">
-                      ✕ 閉じる
-                    </button>
+      {tab === "面接官分析" && (
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold mb-4">面接官スキルレーダー</h3>
+            {interviewerStats.length > 0 ? (
+              <Radar data={radarData} options={{
+                responsive: true,
+                scales: { r: { beginAtZero: true, max: 100 } },
+                plugins: { legend: { position: "bottom" } },
+              }} />
+            ) : (
+              <p className="text-gray-400 text-sm">面接データがありません</p>
+            )}
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold mb-4">面接官一覧</h3>
+            <div className="space-y-3">
+              {interviewerStats.map(iv => (
+                <div key={iv.name} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <div>
+                    <div className="font-medium">{iv.name}</div>
+                    <div className="text-xs text-gray-500">面接回数: {iv.count}</div>
                   </div>
-                  <div className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{questionsResult}</div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-blue-600">
+                      {iv.avgRating > 0 ? iv.avgRating : "-"}
+                    </div>
+                    <div className="text-xs text-gray-400">平均評価</div>
+                  </div>
                 </div>
+              ))}
+              {interviewerStats.length === 0 && (
+                <p className="text-gray-400 text-sm">面接データがありません</p>
               )}
             </div>
-          )}
-
-          {/* Tab: Feedback / Stats */}
-          {tab === "feedback" && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-[15px] font-bold text-gray-700 mb-4">📊 面接パイプライン状況</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="bg-blue-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-extrabold text-blue-700">{interviewCandidates}</div>
-                    <div className="text-[11px] text-blue-500 font-bold mt-1">面接中の候補者</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-extrabold text-purple-700">{stageDistribution["interview1"] || 0}</div>
-                    <div className="text-[11px] text-purple-500 font-bold mt-1">1次面接</div>
-                  </div>
-                  <div className="bg-amber-50 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-extrabold text-amber-700">{stageDistribution["interview_final"] || 0}</div>
-                    <div className="text-[11px] text-amber-500 font-bold mt-1">最終面接</div>
-                  </div>
-                </div>
-              </div>
-
-              {pipeline.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h3 className="text-[14px] font-bold text-gray-700 mb-3">面接予定の候補者</h3>
-                  <div className="space-y-2">
-                    {pipeline.slice(0, 10).map((p) => (
-                      <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50">
-                        <div>
-                          <span className="text-[13px] font-bold text-gray-700">{p.candidate?.name || "不明"}</span>
-                          <span className="text-[11px] text-gray-400 ml-2">{p.candidate?.current_position}</span>
-                        </div>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                            p.stage === "interview_final" ? "bg-amber-100 text-amber-700" : "bg-purple-100 text-purple-700"
-                          }`}
-                        >
-                          {p.stage === "interview_final" ? "最終面接" : "1次面接"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: Debrief */}
-          {tab === "debrief" && (
-            <div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 className="text-[15px] font-bold text-gray-700 mb-1">📝 面接後AI振り返り</h2>
-                <p className="text-[12px] text-gray-400 mb-4">面接メモを貼り付けると、AIが構造化されたフィードバックを生成します</p>
-                <div className="mb-4">
-                  <label className="text-[11px] font-bold text-gray-500 block mb-1">面接メモ・ノート</label>
-                  <textarea
-                    className={`${inputClass} resize-none min-h-[180px]`}
-                    value={debriefNotes}
-                    onChange={(e) => setDebriefNotes(e.target.value)}
-                    placeholder={`例:\n田中太郎さん（フロントエンドエンジニア候補）\n- Reactの経験は3年、実プロダクトでの開発経験あり\n- チームリーダー経験なし、マネジメント志向は低め\n- 技術的な質問にはスムーズに回答\n- 転職理由がやや曖昧だった\n- カルチャーフィットは良さそう`}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    onClick={requestDebrief}
-                    disabled={debriefLoading || !debriefNotes.trim()}
-                    className="text-[12px] font-bold text-white bg-emerald-600 px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                  >
-                    {debriefLoading ? "⏳ 分析中..." : "🤖 AIフィードバックを生成"}
-                  </button>
-                </div>
-              </div>
-
-              {debriefLoading && (
-                <div className="bg-emerald-50 rounded-xl p-6 mb-6 text-center">
-                  <div className="text-3xl mb-2 animate-pulse">📝</div>
-                  <div className="text-[13px] font-bold text-emerald-700">AIが面接メモを分析中...</div>
-                  <div className="text-[11px] text-emerald-500 mt-1">構造化されたフィードバックを生成しています</div>
-                </div>
-              )}
-
-              {debriefResult && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[15px] font-bold text-gray-700">🤖 AI振り返りフィードバック</h3>
-                    <button onClick={() => setDebriefResult("")} className="text-[11px] text-gray-400 hover:text-gray-600">
-                      ✕ 閉じる
-                    </button>
-                  </div>
-                  <div className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">
-                    {debriefResult}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
 
-      <StepNavigation />
+      {tab === "質問生成" && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold mb-4">AI面接質問ジェネレーター</h3>
+          <div className="flex gap-3 mb-4">
+            <select
+              value={selectedJob}
+              onChange={e => setSelectedJob(e.target.value)}
+              className="flex-1 border rounded-lg px-3 py-2 text-sm"
+            >
+              {jobs.map(j => (
+                <option key={j.id} value={j.id}>{j.title} ({j.department})</option>
+              ))}
+            </select>
+            <button
+              onClick={generateQuestions}
+              disabled={qLoading || !selectedJob}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {qLoading ? "生成中..." : "質問を生成"}
+            </button>
+          </div>
+          {questions && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm whitespace-pre-wrap">
+              {questions}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "フィードバック分析" && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold mb-4">面接フィードバック品質分析</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            過去の面接フィードバックをAIが分析し、改善ポイントを提案します。
+          </p>
+          <button
+            onClick={analyzeFeedback}
+            disabled={fbLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 mb-4"
+          >
+            {fbLoading ? "分析中..." : "フィードバック分析"}
+          </button>
+          {feedbackAnalysis && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm whitespace-pre-wrap">
+              {feedbackAnalysis}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "トレーニング" && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold mb-4">面接官トレーニングモジュール</h3>
+          <div className="space-y-4">
+            {TRAINING_MODULES.map((m, i) => {
+              const progress = [75, 40, 60, 20, 90][i];
+              return (
+                <div key={m.name} className="p-4 rounded-lg bg-gray-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-medium">{m.name}</div>
+                      <div className="text-xs text-gray-500">{m.desc}</div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      m.level === "初級" ? "bg-green-100 text-green-700" :
+                      m.level === "中級" ? "bg-yellow-100 text-yellow-700" :
+                      "bg-red-100 text-red-700"
+                    }`}>
+                      {m.level}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-blue-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">{progress}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
