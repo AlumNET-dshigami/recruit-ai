@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 
 export default function MainLayout({
@@ -10,18 +9,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authed, setAuthed] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (localStorage.getItem("peers_auth") === "1") {
-      setAuthed(true);
-    } else {
-      router.replace("/login");
-    }
-  }, [router]);
-
-  if (!authed) return null;
+  // デモ版: 認証なし
 
   return (
     <div className="flex h-screen bg-bg">
