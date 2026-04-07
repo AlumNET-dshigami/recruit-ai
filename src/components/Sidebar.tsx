@@ -27,6 +27,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/sourcing", icon: "📢", label: "母集団形成" },
       { href: "/jobs", icon: "💼", label: "求人管理" },
+      { href: "/persona", icon: "🧠", label: "ペルソナ設計" },
+      { href: "/job-convert", icon: "🔄", label: "媒体別変換" },
+      { href: "/scout", icon: "✉️", label: "スカウト生成" },
     ],
   },
   {
