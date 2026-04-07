@@ -24,10 +24,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            Peers Recruit
+            Recruit AI
           </h1>
           <p className="text-blue-300/60 text-[13px] mt-1">
-            株式会社ピアズ × AI採用アシスタント
+            AI採用アシスタント | Demo
           </p>
         </div>
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-7">
@@ -59,7 +59,7 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-white/20 text-[11px] mt-6">
-          &copy; Peers, Inc. 2026
+          &copy; Recruit AI Demo 2026
         </p>
       </div>
     </div>

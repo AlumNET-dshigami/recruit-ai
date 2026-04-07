@@ -99,10 +99,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <div className="px-5 pt-5 pb-3 border-b border-white/[0.08] flex items-center justify-between">
           <div>
             <div className="text-white text-lg font-extrabold tracking-tight">
-              Peers Recruit
+              Recruit AI
             </div>
             <div className="text-slate-400 text-[11px] font-semibold mt-0.5">
-              株式会社ピアズ × AI採用
+              AI採用アシスタント | Demo
             </div>
           </div>
           {/* Mobile close button */}
@@ -151,7 +151,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <div className="px-5 py-3.5 border-t border-white/[0.08] text-[10.5px] text-white/30">
           Powered by Gemini 2.0 Flash Lite
           <br />
-          &copy; Peers, Inc. 2026
+          &copy; Recruit AI Demo 2026
         </div>
       </div>
     </>

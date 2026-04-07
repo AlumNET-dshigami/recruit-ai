@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Peers Recruit - AI採用アシスタント | 株式会社ピアズ",
+  title: "Recruit AI - AI採用アシスタント | Demo",
   description: "AIを活用した採用業務支援ツール。ペルソナ設計・求人票作成・スカウト文章・書類選考・面接質問・合否判定まで一気通貫。",
 };
 

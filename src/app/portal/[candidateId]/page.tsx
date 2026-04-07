@@ -184,7 +184,7 @@ export default function CandidatePortalPage() {
         <header className="bg-white border-b border-gray-100 px-6 py-4">
           <div className="max-w-[700px] mx-auto flex items-center gap-3">
             <div className="text-[18px] font-extrabold text-blue-700">
-              Peers Recruit
+              Recruit AI
             </div>
             <span className="text-[11px] text-gray-400">候補者ポータル</span>
           </div>
@@ -205,7 +205,7 @@ export default function CandidatePortalPage() {
         <header className="bg-white border-b border-gray-100 px-6 py-4">
           <div className="max-w-[700px] mx-auto flex items-center gap-3">
             <div className="text-[18px] font-extrabold text-blue-700">
-              Peers Recruit
+              Recruit AI
             </div>
             <span className="text-[11px] text-gray-400">候補者ポータル</span>
           </div>
@@ -230,7 +230,7 @@ export default function CandidatePortalPage() {
       <header className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-[700px] mx-auto flex items-center gap-3">
           <div className="text-[18px] font-extrabold text-blue-700">
-            Peers Recruit
+            Recruit AI
           </div>
           <span className="text-[11px] text-gray-400">候補者ポータル</span>
         </div>

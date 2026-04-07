@@ -69,7 +69,7 @@ export default function SettingsPage() {
           jobTitle: "フロントエンドエンジニア",
           stage: "応募",
           score: 85,
-          details: "🔔 Peers Recruitからのテスト通知です",
+          details: "🔔 Recruit AIからのテスト通知です",
         }),
       });
       const data = await res.json();
